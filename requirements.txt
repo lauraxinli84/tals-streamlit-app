@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+plotly
+scikit-learn
+joblib
+shap
+streamlit-shap
+gspread
+google-auth
+
