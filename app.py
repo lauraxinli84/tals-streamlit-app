@@ -21,6 +21,7 @@ import json
 import requests
 import hashlib
 
+'''
 def hash_password(password):
     """Hash a password for storing."""
     return hashlib.sha256(str.encode(password)).hexdigest()
@@ -76,6 +77,7 @@ def check_password():
 # Call the authentication function - ADD THIS RIGHT AFTER YOUR IMPORTS
 if not check_password():
     st.stop()  # Do not continue if check_password is not True
+'''
 
 # Set page config
 st.set_page_config(page_title="TALS Data Explorer", layout="wide")
