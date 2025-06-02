@@ -519,96 +519,67 @@ def standardize_new_data(df, upload_source):
     
     return df
 
+
 def get_google_credentials():
     """
-    Get Google credentials from Streamlit secrets with debugging
+    Get Google credentials from Streamlit secrets
     """
     try:
-        st.write("🔍 Debug: Checking for Streamlit secrets...")
-        
-        # Check if st.secrets exists
-        if not hasattr(st, 'secrets'):
-            st.error("❌ st.secrets not available")
+        if hasattr(st, 'secrets') and 'google_credentials' in st.secrets:
+            return dict(st.secrets.google_credentials)
+        else:
+            st.error("Google credentials not found in Streamlit secrets.")
             return None
-            
-        st.write("✅ Debug: st.secrets is available")
-        
-        # Check if google_credentials exists in secrets
-        if 'google_credentials' not in st.secrets:
-            st.error("❌ 'google_credentials' not found in secrets")
-            st.write("Available secrets keys:", list(st.secrets.keys()))
-            return None
-            
-        st.write("✅ Debug: google_credentials found in secrets")
-        
-        # Try to convert to dict
-        creds_dict = dict(st.secrets.google_credentials)
-        st.write("✅ Debug: Successfully converted credentials to dict")
-        st.write("Credentials keys:", list(creds_dict.keys()))
-        
-        return creds_dict
-        
     except Exception as e:
-        st.error(f"❌ Error in get_google_credentials: {type(e).__name__}: {str(e)}")
-        import traceback
-        st.error(f"Full traceback: {traceback.format_exc()}")
+        st.error(f"Error loading credentials: {str(e)}")
         return None
 
-# Load data function
 @st.cache_data(ttl=3600)
 def load_data():
     """
     Load data from Google Drive using service account credentials
     """
     try:
-        st.write("🔍 Debug: Starting load_data function...")
-        
         # Get credentials from Streamlit secrets
         creds_dict = get_google_credentials()
         if creds_dict is None:
             st.error("Cannot load data: Missing credentials")
             st.stop()
         
-        st.write("✅ Debug: Credentials loaded successfully")
-        
         # Set up credentials and authorize
         scopes = ['https://www.googleapis.com/auth/drive']
-        st.write("🔍 Debug: Creating credentials object...")
-        
         credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        st.write("✅ Debug: Credentials object created")
-        
-        st.write("🔍 Debug: Authorizing gspread...")
         gc = gspread.authorize(credentials)
-        st.write("✅ Debug: gspread authorized successfully")
         
         # Your Google Drive file ID
         FILE_ID = "1IaVYJsgyqno73-O-s0TMD1AoQHRdkpsUz-LonB1CbF4"
-        st.write(f"🔍 Debug: Attempting to open file with ID: {FILE_ID}")
         
         # Open the file and get the first worksheet
         file = gc.open_by_key(FILE_ID)
-        st.write("✅ Debug: File opened successfully")
-        
         worksheet = file.get_worksheet(0)
-        st.write("✅ Debug: Worksheet accessed successfully")
         
         # Get all values and convert to DataFrame
-        st.write("🔍 Debug: Getting all values from worksheet...")
         data = worksheet.get_all_values()
-        st.write(f"✅ Debug: Retrieved {len(data)} rows from worksheet")
-        
         headers = data[0]
         rows = data[1:]
         
         df = pd.DataFrame(rows, columns=headers)
-        st.write(f"✅ Debug: Created DataFrame with {len(df)} rows and {len(df.columns)} columns")
         
         # Convert date columns 
         date_columns = ['date_opened', 'date_closed']
         for col in date_columns:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce', cache=False).dt.normalize()
+        
+        # Convert numeric columns (EXPANDED LIST)
+        numeric_columns = [
+            'poverty_pct', 'adj_poverty_pct', 'age_intake', 'outcome_amount', 'case_time',
+            'household_total', 'household_adults', 'household_children', 'days_open'
+        ]
+        
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
         
         # Optimize categorical columns
         categorical_columns = [
@@ -620,24 +591,11 @@ def load_data():
         for col in categorical_columns:
             if col in df.columns:
                 df[col] = pd.Categorical(df[col])
-        
-        # Optimize numeric columns
-        numeric_columns = [
-            'poverty_pct', 'adj_poverty_pct', 'age_intake', 'outcome_amount', 'case_time',
-            'household_total', 'household_adults', 'household_children'
-        ]
-        
-        for col in numeric_columns:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-        
-        st.write("✅ Debug: Data processing complete!")
+            
         return df
         
     except Exception as e:
-        st.error(f"❌ Detailed error in load_data: {type(e).__name__}: {str(e)}")
-        import traceback
-        st.error(f"Full traceback: {traceback.format_exc()}")
+        st.error(f"An error occurred loading data from Google Drive: {str(e)}")
         st.stop()
 
 # functions for data upload 
@@ -658,16 +616,18 @@ def save_to_google_drive(combined_df):
         gc = gspread.authorize(credentials)
         
         # Your Google Drive file ID (same as in load_data)
-        FILE_ID = "1IaVYJsgyqno73-O-s0TMD1AoQHRdkpsUz-LonB1CbF4"  
+        FILE_ID = "1IaVYJsgyqno73-O-s0TMD1AoQHRdkpsUz-LonB1CbF4"
         
-        # Rest of your function stays the same...
+        # Open the file and clear existing data
         file = gc.open_by_key(FILE_ID)
         worksheet = file.get_worksheet(0)
         worksheet.clear()
         
-        data_to_upload = [combined_df.columns.tolist()]
-        data_to_upload.extend(combined_df.astype(str).values.tolist())
+        # Prepare data for upload - convert all to strings to avoid formatting issues
+        data_to_upload = [combined_df.columns.tolist()]  # Headers first
+        data_to_upload.extend(combined_df.astype(str).values.tolist())  # Then data rows
         
+        # Upload data to Google Sheets
         worksheet.update(data_to_upload)
         
         return True
@@ -818,7 +778,7 @@ def download_model_from_drive(file_id, model_name):
         scopes = ['https://www.googleapis.com/auth/drive']
         credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         
-        # Rest of your function stays the same...
+        # Download model using Google Drive API
         import googleapiclient.discovery
         service = googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
         
@@ -840,7 +800,6 @@ def download_model_from_drive(file_id, model_name):
         st.error(f"Error loading {model_name} model from Google Drive: {str(e)}")
         return None
 
-# Updated model loading functions
 @st.cache_resource
 def load_dv_model():
     """Load DV prediction model from Google Drive"""
