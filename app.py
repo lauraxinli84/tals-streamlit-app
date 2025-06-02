@@ -19,65 +19,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 import json
 import requests
-import hashlib
-
-'''
-def hash_password(password):
-    """Hash a password for storing."""
-    return hashlib.sha256(str.encode(password)).hexdigest()
-
-def check_password():
-    """Returns True if the user has entered the correct password."""
-    
-    def password_entered():
-        """Checks whether a password entered by the user is correct."""
-        username = st.session_state["username"]
-        password = st.session_state["password"]
-        
-        # Define valid users and their hashed passwords
-        # You can add more users here
-        valid_users = {
-            'admin': '5f358e17be89fc2c070a2066e6ce8e4dc4eb96cab770c8949ef808ec053cee80',
-            'laet': 'b28175c8d274ea5c7cfb0d9ef6a6ea9ce58ea8615aa15b12e268e6e53bd8cd76',
-            'wtls': '20b0f7d1b03c42781fba82a79fce61559b771456d7c234e86d2791b5d3a36605',
-            'mals': '52768119e3adca086712dabab4328eb92319d826fcf059f5d7998213ad47c024',
-            'las': '3acb16573f9788cd955704c9519df5b9c5aac37e4c9b4099e55ae257fe6f4757',
-            'tals': '4f4cea335e3bf099b6d62d2de3f00b7aeca7886c5d8c6910de5dfe4e232ea0a6'
-        }
-    
-        if username in valid_users and hash_password(password) == valid_users[username]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Don't store the password
-            del st.session_state["username"]  # Don't store the username
-        else:
-            st.session_state["password_correct"] = False
-
-    # Return True if password is validated
-    if st.session_state.get("password_correct", False):
-        return True
-
-    # Show login form
-    st.markdown("# 🔒 TALS Data Explorer - Login Required")
-    st.markdown("Please enter your credentials to access the application.")
-    
-    with st.form("login_form"):
-        st.text_input("Username", key="username")
-        st.text_input("Password", type="password", key="password")
-        submit_button = st.form_submit_button("Login", on_click=password_entered)
-    
-    if "password_correct" in st.session_state:
-        if not st.session_state["password_correct"]:
-            st.error("😞 Username or password incorrect")
-    
-    st.markdown("---")
-    st.markdown("*Contact your administrator if you need access credentials.*")
-    
-    return False
-
-# Call the authentication function - ADD THIS RIGHT AFTER YOUR IMPORTS
-if not check_password():
-    st.stop()  # Do not continue if check_password is not True
-'''
 
 # Set page config
 st.set_page_config(page_title="TALS Data Explorer", layout="wide")
