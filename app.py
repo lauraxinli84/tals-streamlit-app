@@ -521,27 +521,48 @@ def standardize_new_data(df, upload_source):
 
 def get_google_credentials():
     """
-    Get Google credentials from Streamlit secrets
+    Get Google credentials from Streamlit secrets with debugging
     """
     try:
-        # Try to get from Streamlit secrets first (for production)
-        if hasattr(st, 'secrets') and 'google_credentials' in st.secrets:
-            return dict(st.secrets.google_credentials)
-        # Fallback for local development
-        else:
-            st.error("Google credentials not found in Streamlit secrets.")
+        st.write("🔍 Debug: Checking for Streamlit secrets...")
+        
+        # Check if st.secrets exists
+        if not hasattr(st, 'secrets'):
+            st.error("❌ st.secrets not available")
             return None
+            
+        st.write("✅ Debug: st.secrets is available")
+        
+        # Check if google_credentials exists in secrets
+        if 'google_credentials' not in st.secrets:
+            st.error("❌ 'google_credentials' not found in secrets")
+            st.write("Available secrets keys:", list(st.secrets.keys()))
+            return None
+            
+        st.write("✅ Debug: google_credentials found in secrets")
+        
+        # Try to convert to dict
+        creds_dict = dict(st.secrets.google_credentials)
+        st.write("✅ Debug: Successfully converted credentials to dict")
+        st.write("Credentials keys:", list(creds_dict.keys()))
+        
+        return creds_dict
+        
     except Exception as e:
-        st.error(f"Error loading credentials: {str(e)}")
+        st.error(f"❌ Error in get_google_credentials: {type(e).__name__}: {str(e)}")
+        import traceback
+        st.error(f"Full traceback: {traceback.format_exc()}")
         return None
 
 # Load data function
-@st.cache_data(ttl=3600)  # Still use Streamlit's in-memory caching
+@st.cache_data(ttl=3600)
 def load_data():
     """
     Load data from Google Drive using service account credentials
     """
     try:
+        st.write("🔍 Debug: Starting load_data function...")
+        
         # Get credentials from Streamlit secrets
         creds_dict = get_google_credentials()
         if creds_dict is None:
