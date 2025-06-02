@@ -18,6 +18,7 @@ from preprocessing import preprocess_client_data, interpret_risk_score
 import gspread
 from google.oauth2.service_account import Credentials
 import json
+import requests
 
 # Set page config
 st.set_page_config(page_title="TALS Data Explorer", layout="wide")
@@ -27,7 +28,6 @@ st.session_state.setdefault('upload_stage', 'initial')
 st.session_state.setdefault('processed_data', None)
 st.session_state.setdefault('upload_success', False)
 st.session_state.setdefault('saving_in_progress', False)
-
 
 # Standardization mappings
 @st.cache_data
@@ -748,6 +748,62 @@ def handle_file_upload():
                 st.session_state.upload_stage = 'initial'
                 st.session_state.processed_data = None
                 st.experimental_rerun()
+
+def download_model_from_drive(file_id, model_name):
+    """
+    Download model from Google Drive using file ID
+    """
+    try:
+        # Load credentials
+        with open('credentials.json', 'r') as f:
+            creds_dict = json.load(f)
+        
+        # Set up credentials
+        scopes = ['https://www.googleapis.com/auth/drive']
+        credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        gc = gspread.authorize(credentials)
+        
+        # Create download URL
+        download_url = f"https://drive.google.com/uc?id={file_id}&export=download"
+        
+        # Get the drive service to download file
+        import googleapiclient.discovery
+        service = googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
+        
+        # Download file content
+        request = service.files().get_media(fileId=file_id)
+        file_content = io.BytesIO()
+        
+        import googleapiclient.http
+        downloader = googleapiclient.http.MediaIoBaseDownload(file_content, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+        
+        # Reset file pointer and load model
+        file_content.seek(0)
+        model = joblib.load(file_content)
+        
+        return model
+        
+    except Exception as e:
+        st.error(f"Error loading {model_name} model from Google Drive: {str(e)}")
+        return None
+
+# Updated model loading functions
+@st.cache_resource
+def load_dv_model():
+    """Load DV prediction model from Google Drive"""
+    DV_MODEL_FILE_ID = "185zB1NckKot3BDv7uh-hUpgA8_-jTbuk"
+    model = download_model_from_drive(DV_MODEL_FILE_ID, "DV prediction")
+    return model
+
+@st.cache_resource  
+def load_case_time_model():
+    """Load case time prediction model from Google Drive"""
+    CASE_TIME_MODEL_FILE_ID = "12o4y0S9RiAFHmaoabASmYkQ2hWll03uZ"
+    model = download_model_from_drive(CASE_TIME_MODEL_FILE_ID, "case time prediction")
+    return model
 
 # Load the data
 if 'data_loaded' not in st.session_state:
@@ -1616,14 +1672,9 @@ with tab6:
     from preprocessing import preprocess_client_data, interpret_risk_score
 
     # Load the model (use st.cache_resource to load it only once)
-    @st.cache_resource
-    def load_dv_model():
-        model = joblib.load('domestic_violence_logistic_regression_high_recall.pkl')
-        return model
-    
     try:
-        model = load_dv_model()
-        model_loaded = True
+        model = load_dv_model()  # This now uses the Google Drive function
+        model_loaded = True if model is not None else False
     except Exception as e:
         st.error(f"Error loading model: {str(e)}")
         model_loaded = False
