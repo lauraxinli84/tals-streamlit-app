@@ -527,7 +527,7 @@ def get_google_credentials():
         # Try to get from Streamlit secrets first (for production)
         if hasattr(st, 'secrets') and 'google_credentials' in st.secrets:
             return dict(st.secrets.google_credentials)
-        # Fallback for local development - you can create a local .streamlit/secrets.toml file
+        # Fallback for local development
         else:
             st.error("Google credentials not found in Streamlit secrets.")
             return None
@@ -621,7 +621,7 @@ def save_to_google_drive(combined_df):
         gc = gspread.authorize(credentials)
         
         # Your Google Drive file ID (same as in load_data)
-        FILE_ID = "YOUR_ACTUAL_FILE_ID_HERE"  # Replace with your file ID
+        FILE_ID = "1IaVYJsgyqno73-O-s0TMD1AoQHRdkpsUz-LonB1CbF4"  
         
         # Rest of your function stays the same...
         file = gc.open_by_key(FILE_ID)
