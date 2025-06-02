@@ -569,24 +569,40 @@ def load_data():
             st.error("Cannot load data: Missing credentials")
             st.stop()
         
+        st.write("✅ Debug: Credentials loaded successfully")
+        
         # Set up credentials and authorize
         scopes = ['https://www.googleapis.com/auth/drive']
-        credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        gc = gspread.authorize(credentials)
+        st.write("🔍 Debug: Creating credentials object...")
         
-        # Your Google Drive file ID (replace with your actual file ID)
-        FILE_ID = "1IaVYJsgyqno73-O-s0TMD1AoQHRdkpsUz-LonB1CbF4"  # Replace this with the file ID you copied
+        credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        st.write("✅ Debug: Credentials object created")
+        
+        st.write("🔍 Debug: Authorizing gspread...")
+        gc = gspread.authorize(credentials)
+        st.write("✅ Debug: gspread authorized successfully")
+        
+        # Your Google Drive file ID
+        FILE_ID = "1IaVYJsgyqno73-O-s0TMD1AoQHRdkpsUz-LonB1CbF4"
+        st.write(f"🔍 Debug: Attempting to open file with ID: {FILE_ID}")
         
         # Open the file and get the first worksheet
         file = gc.open_by_key(FILE_ID)
-        worksheet = file.get_worksheet(0)  # Gets the first sheet
+        st.write("✅ Debug: File opened successfully")
+        
+        worksheet = file.get_worksheet(0)
+        st.write("✅ Debug: Worksheet accessed successfully")
         
         # Get all values and convert to DataFrame
+        st.write("🔍 Debug: Getting all values from worksheet...")
         data = worksheet.get_all_values()
+        st.write(f"✅ Debug: Retrieved {len(data)} rows from worksheet")
+        
         headers = data[0]
         rows = data[1:]
         
         df = pd.DataFrame(rows, columns=headers)
+        st.write(f"✅ Debug: Created DataFrame with {len(df)} rows and {len(df.columns)} columns")
         
         # Convert date columns 
         date_columns = ['date_opened', 'date_closed']
@@ -614,14 +630,14 @@ def load_data():
         for col in numeric_columns:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-            
+        
+        st.write("✅ Debug: Data processing complete!")
         return df
         
-    except FileNotFoundError:
-        st.error("Error: credentials.json file not found. Make sure it's uploaded to your repository.")
-        st.stop()
     except Exception as e:
-        st.error(f"An error occurred loading data from Google Drive: {str(e)}")
+        st.error(f"❌ Detailed error in load_data: {type(e).__name__}: {str(e)}")
+        import traceback
+        st.error(f"Full traceback: {traceback.format_exc()}")
         st.stop()
 
 # functions for data upload 
