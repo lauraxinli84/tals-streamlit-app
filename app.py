@@ -519,6 +519,22 @@ def standardize_new_data(df, upload_source):
     
     return df
 
+def get_google_credentials():
+    """
+    Get Google credentials from Streamlit secrets
+    """
+    try:
+        # Try to get from Streamlit secrets first (for production)
+        if hasattr(st, 'secrets') and 'google_credentials' in st.secrets:
+            return dict(st.secrets.google_credentials)
+        # Fallback for local development - you can create a local .streamlit/secrets.toml file
+        else:
+            st.error("Google credentials not found in Streamlit secrets.")
+            return None
+    except Exception as e:
+        st.error(f"Error loading credentials: {str(e)}")
+        return None
+
 # Load data function
 @st.cache_data(ttl=3600)  # Still use Streamlit's in-memory caching
 def load_data():
@@ -526,9 +542,11 @@ def load_data():
     Load data from Google Drive using service account credentials
     """
     try:
-        # Load credentials from the JSON file
-        with open('credentials.json', 'r') as f:
-            creds_dict = json.load(f)
+        # Get credentials from Streamlit secrets
+        creds_dict = get_google_credentials()
+        if creds_dict is None:
+            st.error("Cannot load data: Missing credentials")
+            st.stop()
         
         # Set up credentials and authorize
         scopes = ['https://www.googleapis.com/auth/drive']
@@ -591,9 +609,11 @@ def save_to_google_drive(combined_df):
     Save updated dataframe back to Google Drive
     """
     try:
-        # Load credentials
-        with open('credentials.json', 'r') as f:
-            creds_dict = json.load(f)
+        # Get credentials from Streamlit secrets
+        creds_dict = get_google_credentials()
+        if creds_dict is None:
+            st.error("Cannot save to Google Drive: Missing credentials")
+            return False
         
         # Set up credentials and authorize
         scopes = ['https://www.googleapis.com/auth/drive']
@@ -601,19 +621,16 @@ def save_to_google_drive(combined_df):
         gc = gspread.authorize(credentials)
         
         # Your Google Drive file ID (same as in load_data)
-        FILE_ID = "1IaVYJsgyqno73-O-s0TMD1AoQHRdkpsUz-LonB1CbF4"  # Replace with your file ID
+        FILE_ID = "YOUR_ACTUAL_FILE_ID_HERE"  # Replace with your file ID
         
-        # Open the file and clear existing data
+        # Rest of your function stays the same...
         file = gc.open_by_key(FILE_ID)
         worksheet = file.get_worksheet(0)
         worksheet.clear()
         
-        # Prepare data for upload
-        # Convert DataFrame to list of lists
-        data_to_upload = [combined_df.columns.tolist()]  # Headers first
-        data_to_upload.extend(combined_df.astype(str).values.tolist())  # Then data rows
+        data_to_upload = [combined_df.columns.tolist()]
+        data_to_upload.extend(combined_df.astype(str).values.tolist())
         
-        # Upload data to Google Sheets
         worksheet.update(data_to_upload)
         
         return True
@@ -754,23 +771,20 @@ def download_model_from_drive(file_id, model_name):
     Download model from Google Drive using file ID
     """
     try:
-        # Load credentials
-        with open('credentials.json', 'r') as f:
-            creds_dict = json.load(f)
+        # Get credentials from Streamlit secrets
+        creds_dict = get_google_credentials()
+        if creds_dict is None:
+            st.error(f"Cannot load {model_name} model: Missing credentials")
+            return None
         
         # Set up credentials
         scopes = ['https://www.googleapis.com/auth/drive']
         credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        gc = gspread.authorize(credentials)
         
-        # Create download URL
-        download_url = f"https://drive.google.com/uc?id={file_id}&export=download"
-        
-        # Get the drive service to download file
+        # Rest of your function stays the same...
         import googleapiclient.discovery
         service = googleapiclient.discovery.build('drive', 'v3', credentials=credentials)
         
-        # Download file content
         request = service.files().get_media(fileId=file_id)
         file_content = io.BytesIO()
         
@@ -780,7 +794,6 @@ def download_model_from_drive(file_id, model_name):
         while done is False:
             status, done = downloader.next_chunk()
         
-        # Reset file pointer and load model
         file_content.seek(0)
         model = joblib.load(file_content)
         
