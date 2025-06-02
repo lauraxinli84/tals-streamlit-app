@@ -36,12 +36,12 @@ def check_password():
         # Define valid users and their hashed passwords
         # You can add more users here
         valid_users = {
-            admin hash: 5f358e17be89fc2c070a2066e6ce8e4dc4eb96cab770c8949ef808ec053cee80
-            laet hash: b28175c8d274ea5c7cfb0d9ef6a6ea9ce58ea8615aa15b12e268e6e53bd8cd76
-            wtls hash: 20b0f7d1b03c42781fba82a79fce61559b771456d7c234e86d2791b5d3a36605
-            mals hash: 52768119e3adca086712dabab4328eb92319d826fcf059f5d7998213ad47c024
-            las hash: 3acb16573f9788cd955704c9519df5b9c5aac37e4c9b4099e55ae257fe6f4757
-            tals hash: 4f4cea335e3bf099b6d62d2de3f00b7aeca7886c5d8c6910de5dfe4e232ea0a6
+            'admin': '5f358e17be89fc2c070a2066e6ce8e4dc4eb96cab770c8949ef808ec053cee80',
+            'laet': 'b28175c8d274ea5c7cfb0d9ef6a6ea9ce58ea8615aa15b12e268e6e53bd8cd76',
+            'wtls': '20b0f7d1b03c42781fba82a79fce61559b771456d7c234e86d2791b5d3a36605',
+            'mals': '52768119e3adca086712dabab4328eb92319d826fcf059f5d7998213ad47c024',
+            'las': '3acb16573f9788cd955704c9519df5b9c5aac37e4c9b4099e55ae257fe6f4757',
+            'tals': '4f4cea335e3bf099b6d62d2de3f00b7aeca7886c5d8c6910de5dfe4e232ea0a6'
         }
     
         if username in valid_users and hash_password(password) == valid_users[username]:
