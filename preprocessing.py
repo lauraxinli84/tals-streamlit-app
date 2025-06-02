@@ -223,8 +223,17 @@ def predict_domestic_violence_risk(client_data):
         Dictionary containing risk score, level, and recommendation
     """
     try:
-        # Load the model
-        model = joblib.load('domestic_violence_logistic_regression_high_recall.pkl')
+        # Load the model from Google Drive
+        from app import load_dv_model
+        model = load_dv_model()
+        
+        # Check if model loaded successfully
+        if model is None:
+            return {
+                'risk_score': None,
+                'risk_level': "Error",
+                'recommendation': "Could not load prediction model"
+            }
         
         # Preprocess data
         processed_data = preprocess_client_data(client_data)
@@ -259,8 +268,17 @@ def predict_case_time(client_data):
         Dictionary containing predicted hours and resource allocation recommendations
     """
     try:
-        # Load the model
-        model = joblib.load('case_time_prediction_model.pkl')
+        # Load the model from Google Drive
+        from app import load_case_time_model
+        model = load_case_time_model()
+        
+        # Check if model loaded successfully
+        if model is None:
+            return {
+                'predicted_hours': None,
+                'complexity_category': "Error",
+                'resource_allocation': "Could not load prediction model"
+            }
         
         # Preprocess data with feature engineering
         processed_data = preprocess_case_time_data(client_data)
