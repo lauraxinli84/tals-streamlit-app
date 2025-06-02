@@ -1,0 +1,281 @@
+"""
+Preprocessing module for legal aid prediction models.
+Contains functions for both domestic violence risk prediction and case time prediction.
+"""
+
+import pandas as pd
+import numpy as np
+import joblib
+
+# --- Domestic Violence Model Functions ---
+
+def preprocess_client_data(client_data):
+    """
+    Prepares client data for domestic violence risk prediction.
+    
+    Parameters:
+    -----------
+    client_data : dict or pd.DataFrame
+        A dictionary or DataFrame containing client information
+    
+    Returns:
+    --------
+    pd.DataFrame
+        Preprocessed data ready for model prediction
+    """
+    # Convert to DataFrame if it's a dictionary
+    if isinstance(client_data, dict):
+        df = pd.DataFrame([client_data])
+    else:
+        df = client_data.copy()
+    
+    # Calculate single_parent feature
+    df['single_parent'] = ((df['household_adults'] == 1) & 
+                         (df['household_children'] > 0)).astype(int)
+    
+    # Important: When using this in production, missing values will be handled
+    # by the preprocessing pipeline inside the saved model
+    
+    return df
+
+def interpret_risk_score(risk_score):
+    """
+    Updated thresholds for ROC AUC optimized model
+    """
+    if risk_score < 0.4:  # Adjusted for ROC AUC model
+        risk_level = "Low"
+        recommendation = "Standard intake process. Low probability of domestic violence based on intake data."
+    elif risk_score < 0.7:  # Adjusted middle range  
+        risk_level = "Medium"
+        recommendation = "Consider additional screening questions during intake. Some risk factors present."
+    else:
+        risk_level = "High"
+        recommendation = "Case shows risk factors similar to past DV cases. Recommend additional screening and consider connecting to resources."
+    
+    return {
+        'risk_score': risk_score,
+        'risk_level': risk_level,
+        'recommendation': recommendation
+    }
+
+# --- Case Time Prediction Functions ---
+
+def engineer_case_time_features(df):
+    """
+    Apply the exact same feature engineering as used in model training.
+    This must match the engineer_features function from the training code.
+    """
+    data = df.copy()
+    
+    # Adult-to-child ratio (handle division by zero)
+    data['adult_child_ratio'] = np.where(
+        data['household_children'] == 0, 
+        data['household_adults'], 
+        data['household_adults'] / data['household_children']
+    )
+    
+    # Household density (handle division by zero)
+    data['household_density'] = np.where(
+        data['household_adults'] == 0, 
+        0, 
+        data['household_total'] / data['household_adults']
+    )
+    
+    # Poverty intensity (handle missing values)
+    data['poverty_intensity'] = np.abs(data['adj_poverty_pct'].fillna(100) - 100)
+    
+    # Age groups (handle missing values and outliers)
+    data['age_intake'] = data['age_intake'].fillna(data['age_intake'].median())
+    data['age_intake'] = np.clip(data['age_intake'], 18, 100)  # Reasonable age bounds
+    data['age_group'] = pd.cut(data['age_intake'], 
+                              bins=[0, 25, 45, 65, 100], 
+                              labels=['young', 'middle', 'senior', 'elderly'])
+    
+    # County match (handle missing values)
+    data['county_match'] = (
+        data['county_residence'].fillna('unknown') == 
+        data['county_dispute'].fillna('unknown')
+    ).astype(int)
+    
+    # Group legal problem codes by major categories (exactly as in training)
+    def group_legal_codes(code):
+        if pd.isna(code):
+            return 'unknown'
+        code_str = str(code).strip()
+        
+        # Extract numeric prefix to determine category
+        if code_str.startswith('0') or code_str.startswith('1'):
+            return 'consumer_finance'  # 01-09: Bankruptcy, Collections, Contracts, etc.
+        elif code_str.startswith('12') or code_str.startswith('13') or code_str.startswith('14') or code_str.startswith('16') or code_str.startswith('19'):
+            return 'education'  # 12-19: Education issues
+        elif code_str.startswith('2'):
+            return 'employment'  # 21-29: Employment and tax issues
+        elif code_str.startswith('3'):
+            return 'family'  # 30-39: Family law matters
+        elif code_str.startswith('4'):
+            return 'juvenile'  # 41-49: Juvenile issues
+        elif code_str.startswith('5'):
+            return 'health'  # 51-59: Health and medical
+        elif code_str.startswith('6'):
+            return 'housing'  # 61-69: Housing and real estate
+        elif code_str.startswith('7'):
+            return 'income_benefits'  # 71-79: Government benefits
+        elif code_str.startswith('8'):
+            return 'civil_rights'  # 81-89: Individual rights and civil matters
+        elif code_str.startswith('9'):
+            return 'miscellaneous'  # 93-99: Licenses, estates, torts, etc.
+        else:
+            return 'other'
+    
+    # Additional interaction features for better predictions
+    data['age_poverty_interaction'] = data['age_intake'] * data['poverty_pct'] / 100
+    data['household_complexity'] = data['household_total'] * data['adult_child_ratio']
+    
+    # High-risk case indicators
+    data['high_poverty'] = (data['adj_poverty_pct'] < 50).astype(int)  # Deep poverty
+    data['elderly_case'] = (data['age_intake'] >= 65).astype(int)
+    data['large_household'] = (data['household_total'] >= 5).astype(int)
+    
+    data['legal_problem_group'] = data['legal_problem_code'].apply(group_legal_codes)
+    
+    # Replace any remaining inf/nan values in engineered features
+    engineered_cols = ['adult_child_ratio', 'household_density', 'poverty_intensity', 'county_match',
+                      'age_poverty_interaction', 'household_complexity', 'high_poverty', 
+                      'elderly_case', 'large_household']
+    for col in engineered_cols:
+        data[col] = data[col].replace([np.inf, -np.inf], np.nan)
+        data[col] = data[col].fillna(data[col].median())
+    
+    return data
+
+def preprocess_case_time_data(client_data):
+    """
+    Prepares client data for case time prediction with full feature engineering.
+    
+    Parameters:
+    -----------
+    client_data : dict or pd.DataFrame
+        A dictionary or DataFrame containing client information
+    
+    Returns:
+    --------
+    pd.DataFrame
+        Preprocessed data ready for model prediction
+    """
+    # Convert to DataFrame if it's a dictionary
+    if isinstance(client_data, dict):
+        df = pd.DataFrame([client_data])
+    else:
+        df = client_data.copy()
+    
+    # Apply feature engineering (this is critical!)
+    processed_data = engineer_case_time_features(df)
+    
+    return processed_data
+
+def interpret_case_time(predicted_time):
+    """
+    Interprets the predicted case time and provides resource allocation recommendations.
+    
+    Parameters:
+    -----------
+    predicted_time : float
+        Predicted case time in hours
+    
+    Returns:
+    --------
+    dict
+        Dictionary containing categorization and resource recommendations
+    """
+    # Round to 1 decimal place for cleaner display
+    hours = round(predicted_time, 1)
+    
+    if hours < 3:
+        category = "Brief Service"
+        allocation = "This case is likely to require minimal resources."
+    elif hours < 10:
+        category = "Moderate Complexity"
+        allocation = "This case will require moderate resources."
+    else:
+        category = "High Complexity"
+        allocation = "This case is likely to require significant resources."
+    
+    return {
+        'predicted_hours': hours,
+        'complexity_category': category,
+        'resource_allocation': allocation
+    }
+
+# --- Prediction Functions ---
+
+def predict_domestic_violence_risk(client_data):
+    """
+    Predicts domestic violence risk for a client based on intake information.
+    
+    Parameters:
+    -----------
+    client_data : dict or pd.DataFrame
+        Dictionary or DataFrame containing client information
+    
+    Returns:
+    --------
+    dict
+        Dictionary containing risk score, level, and recommendation
+    """
+    try:
+        # Load the model
+        model = joblib.load('domestic_violence_logistic_regression_high_recall.pkl')
+        
+        # Preprocess data
+        processed_data = preprocess_client_data(client_data)
+        
+        # Make prediction
+        risk_score = model.predict_proba(processed_data)[0, 1]
+        
+        # Interpret result
+        result = interpret_risk_score(risk_score)
+        
+        return result
+    except Exception as e:
+        print(f"Error predicting domestic violence risk: {e}")
+        return {
+            'risk_score': None,
+            'risk_level': "Error",
+            'recommendation': f"Could not process prediction: {str(e)}"
+        }
+
+def predict_case_time(client_data):
+    """
+    Predicts case time based on client intake information.
+    
+    Parameters:
+    -----------
+    client_data : dict or pd.DataFrame
+        Dictionary or DataFrame containing client information
+    
+    Returns:
+    --------
+    dict
+        Dictionary containing predicted hours and resource allocation recommendations
+    """
+    try:
+        # Load the model
+        model = joblib.load('case_time_prediction_model.pkl')
+        
+        # Preprocess data with feature engineering
+        processed_data = preprocess_case_time_data(client_data)
+        
+        # Make prediction
+        predicted_time = model.predict(processed_data)[0]
+        
+        # Interpret result
+        result = interpret_case_time(predicted_time)
+        
+        return result
+    except Exception as e:
+        print(f"Error predicting case time: {e}")
+        return {
+            'predicted_hours': None,
+            'complexity_category': "Error",
+            'resource_allocation': f"Could not process prediction: {str(e)}"
+        }
