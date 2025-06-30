@@ -1032,7 +1032,16 @@ with tab1:
     # Key metrics in columns
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total Cases", filtered_df['case_id'].nunique())
+    # DEBUG: Check case counting for MALS
+    total_rows = len(filtered_df)
+    unique_cases = filtered_df['case_id'].nunique()
+    null_case_ids = filtered_df['case_id'].isna().sum()
+    
+    st.metric("Total Cases", unique_cases)
+    st.write(f"Debug - Total MALS rows: {total_rows}")
+    st.write(f"Debug - Unique case IDs: {unique_cases}")
+    st.write(f"Debug - Null case IDs: {null_case_ids}")
+    st.write(f"Debug - Sample case IDs: {filtered_df['case_id'].dropna().head(10).tolist()}")
     with col2:
         st.metric("Average Days Open", round(filtered_df['days_open'].mean(), 1))
     with col3:
