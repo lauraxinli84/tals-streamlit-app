@@ -1032,14 +1032,7 @@ with tab1:
     # Key metrics in columns
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        case_ids = filtered_df['case_id'].astype(str)
-        
-        # DEBUG: See what case IDs actually look like
-        st.write("Debug - Case ID value counts:")
-        st.write(case_ids.value_counts().head(20))
-        st.write(f"Debug - Total unique case IDs: {case_ids.nunique()}")
-        
-        st.metric("Total Cases", case_ids.nunique())
+        st.metric("Total Cases", filtered_df['case_id'].nunique())
     with col2:
         st.metric("Average Days Open", round(filtered_df['days_open'].mean(), 1))
     with col3:
