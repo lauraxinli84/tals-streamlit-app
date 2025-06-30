@@ -2162,8 +2162,18 @@ with tab7:  # Case Time Prediction tab
             'legal_problem_code': legal_problem_code
         }
         
+        # DEBUG: Check what data is being sent
+        st.write("Debug - Client data being sent:")
+        for key, value in client_data.items():
+            st.write(f"{key}: {value} (type: {type(value)})")
+        
         # Get prediction
-        result = predict_case_time(client_data)
+        try:
+            result = predict_case_time(client_data)
+            st.write(f"Debug - Result received: {result}")
+        except Exception as e:
+            st.error(f"Debug - Error in predict_case_time: {str(e)}")
+            result = {'predicted_hours': None}
         
         if result['predicted_hours'] is not None:
             # Display results
