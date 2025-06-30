@@ -704,7 +704,7 @@ def handle_file_upload():
     # Display different content based on upload stage
     if st.session_state.upload_success:
         st.success("✅ Dataset successfully updated!")
-        if st.button("Upload Another File"):
+        if st.button("Upload Another File", key="upload_another_file_btn"):
             # Reset all states
             st.session_state.upload_stage = 'initial'
             st.session_state.processed_data = None
@@ -788,7 +788,7 @@ def handle_file_upload():
                 st.metric("Total Records After Merge", len(existing_df) + len(df_processed))
             
             # Confirmation
-            if st.button("Confirm and Save", type="primary"):
+            if st.button("Confirm and Save", type="primary", key="confirm_save_btn"):
                 with st.spinner('Saving data to Google Drive...'):
                     # Combine datasets
                     combined_df = pd.concat([existing_df, df_processed], ignore_index=True)
@@ -814,14 +814,14 @@ def handle_file_upload():
                     else:
                         st.error("Failed to save data to Google Drive. Please try again.")
             
-            if st.button("Cancel"):
+            if st.button("Cancel", key="cancel_upload_btn"):
                 st.session_state.upload_stage = 'initial'
                 st.session_state.processed_data = None
                 st.rerun()
                 
         except Exception as e:
             st.error(f"Error processing existing data: {str(e)}")
-            if st.button("Start Over"):
+            if st.button("Start Over", key="start_over_btn"):
                 st.session_state.upload_stage = 'initial'
                 st.session_state.processed_data = None
                 st.rerun()
@@ -889,7 +889,7 @@ else:
     df = load_data()
 
 # Add refresh button in sidebar
-if st.sidebar.button('Refresh Data'):
+if st.sidebar.button('Refresh Data', key="refresh_data_btn"):
     # Clear Streamlit's cache
     st.cache_data.clear()
     st.session_state.data_loaded = False
@@ -2313,7 +2313,7 @@ st.sidebar.download_button(
 )
 
 # Download Excel button
-if st.sidebar.button("Prepare Excel Download"):
+if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
     with st.sidebar.spinner('Preparing Excel file...'):
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
