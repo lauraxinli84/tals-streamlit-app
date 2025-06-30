@@ -1032,14 +1032,12 @@ with tab1:
     # Key metrics in columns
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        # Fix scientific notation in case_ids before counting
-        fixed_case_ids = filtered_df['case_id'].astype(str)
-        # Convert scientific notation to regular numbers
-        fixed_case_ids = fixed_case_ids.apply(lambda x: f"{float(x):.0f}" if x not in ['nan', 'None', ''] else x)
-        # Remove any invalid entries
-        fixed_case_ids = fixed_case_ids[~fixed_case_ids.isin(['nan', 'None', ''])]
+        # Handle case IDs that might have various formats
+        case_ids = filtered_df['case_id'].astype(str)
+        # Remove only the clearly invalid entries, keep everything else as-is
+        valid_case_ids = case_ids[~case_ids.isin(['nan', 'None', '', '0.00E+00'])]
         
-        st.metric("Total Cases", fixed_case_ids.nunique())
+        st.metric("Total Cases", valid_case_ids.nunique())
     with col2:
         st.metric("Average Days Open", round(filtered_df['days_open'].mean(), 1))
     with col3:
