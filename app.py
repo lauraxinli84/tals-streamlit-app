@@ -1841,9 +1841,13 @@ with tab6:
         with col2:
             st.markdown("**Household Information**")
             # Household information
-            household_total = st.number_input("Total Household Size", min_value=1, max_value=15, value=2, key="dv_household")
-            household_adults = st.number_input("Adults", min_value=1, max_value=10, value=1, key="dv_adults")
-            household_children = st.number_input("Children", min_value=0, max_value=10, value=1, key="dv_children")
+            household_adults = st.number_input("Adults in Household", min_value=1, max_value=10, value=1, key="dv_adults")
+            household_children = st.number_input("Children in Household", min_value=0, max_value=10, value=1, key="dv_children")
+            
+            # Auto-calculate total household size
+            household_total = household_adults + household_children
+            st.info(f"**Total Household Size**: {household_total} (auto-calculated)")
+            
             living_arrangement = st.selectbox("Living Arrangement", 
                                             get_unique_options(df, 'living_arrangement'), key="dv_living")
 
@@ -1871,15 +1875,7 @@ with tab6:
         with col6:
             language = st.selectbox("Language", get_unique_options(df, 'language'), key="dv_language")
         
-        # Add validation
-        validation_error = None
-        if household_adults + household_children != household_total:
-            validation_error = "⚠️ Total household size must equal adults + children"
-        
-        if validation_error:
-            st.error(validation_error)
-        
-        submitted = st.form_submit_button("Predict Risk", disabled=(validation_error is not None))
+        submitted = st.form_submit_button("Predict Risk", type="primary")
 
     if submitted:
         if not model_loaded:
