@@ -1628,8 +1628,14 @@ with tab5:
     try:
         if basic_plot_type == "Bar Chart":
             category_col = st.selectbox("Select Category", options=safe_categorical_columns)
-            # Force to string and clean the data
-            clean_series = display_df[category_col].astype(str).replace('nan', pd.NA).dropna()
+            # More aggressive cleaning for nulls/blanks
+            clean_series = display_df[category_col].copy()
+            clean_series = clean_series.replace(['', ' ', 'nan', 'NaN', 'null', 'NULL', 'None'], pd.NA)
+            clean_series = clean_series.astype(str).replace('nan', pd.NA)
+            clean_series = clean_series.dropna()
+            # Remove any remaining numeric-looking entries that aren't meaningful
+            clean_series = clean_series[~clean_series.str.match(r'^\d+\.?0*$', na=False)]
+            
             value_counts = clean_series.value_counts()
             if category_col != 'county_dispute':
                 value_counts = value_counts.head(10)
@@ -1643,8 +1649,14 @@ with tab5:
 
         elif basic_plot_type == "Pie Chart":
             category_col = st.selectbox("Select Category", options=safe_categorical_columns)
-            # Force to string and clean the data  
-            clean_series = display_df[category_col].astype(str).replace('nan', pd.NA).dropna()
+            # More aggressive cleaning for nulls/blanks
+            clean_series = display_df[category_col].copy()
+            clean_series = clean_series.replace(['', ' ', 'nan', 'NaN', 'null', 'NULL', 'None'], pd.NA)
+            clean_series = clean_series.astype(str).replace('nan', pd.NA)
+            clean_series = clean_series.dropna()
+            # Remove any remaining numeric-looking entries that aren't meaningful
+            clean_series = clean_series[~clean_series.str.match(r'^\d+\.?0*$', na=False)]
+            
             value_counts = clean_series.value_counts().head(10)
             fig = px.pie(
                 values=value_counts.values,
@@ -1652,7 +1664,6 @@ with tab5:
                 title=f"Distribution of {category_col.replace('_', ' ').title()}",
                 labels={'names': category_col.replace('_', ' ').title(), 'values': 'Count'}
             )
-
         elif basic_plot_type == "Line Chart":
             valid_dates_df = display_df[display_df['date_opened'].notna()].copy()
             valid_dates_df['month_year'] = pd.to_datetime(valid_dates_df['date_opened']).dt.to_period('M')
@@ -1772,9 +1783,16 @@ with tab5:
             ])
 
             try:
-                # Clean the category column before grouping
+                # Clean both columns before grouping
                 clean_df = display_df.copy()
-                clean_df[category] = clean_df[category].astype(str).replace('nan', pd.NA).dropna()
+                
+                # Clean the category column
+                clean_df[category] = clean_df[category].replace(['', ' ', 'nan', 'NaN', 'null', 'NULL', 'None'], pd.NA)
+                clean_df[category] = clean_df[category].astype(str).replace('nan', pd.NA)
+                clean_df = clean_df.dropna(subset=[category])
+                # Remove numeric-looking entries
+                clean_df = clean_df[~clean_df[category].str.match(r'^\d+\.?0*$', na=False)]
+                
                 count_df = clean_df.groupby(["legal_problem_code", category]).size().reset_index(name='count')
                 fig = px.bar(
                     count_df,
