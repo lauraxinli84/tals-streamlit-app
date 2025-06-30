@@ -1031,7 +1031,12 @@ with tab1:
     
     # Key metrics in columns
     col1, col2, col3, col4 = st.columns(4)
+    #with col1:
+        #st.metric("Total Cases", filtered_df['case_id'].nunique())
     with col1:
+        # Temporary debug to check if new format is loading
+        st.write("Sample case IDs after refresh:")
+        st.write(filtered_df['case_id'].head(10).tolist())
         st.metric("Total Cases", filtered_df['case_id'].nunique())
     with col2:
         st.metric("Average Days Open", round(filtered_df['days_open'].mean(), 1))
