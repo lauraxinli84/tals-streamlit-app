@@ -1573,9 +1573,10 @@ with tab4:
                     "Download Co-occurrence Data",
                     results_df.to_csv(index=False),
                     file_name=f"client_cooccurrence_{selected_problem.replace('/', '_').replace(' ', '_')}.csv",
-                    mime="text/csv"
+                    mime="text/csv",
+                    key=f"download_cooccurrence_{hash(selected_problem)}"  # Using hash to create unique key
                 )
-                
+                                
         except Exception as e:
             st.error(f"Error in co-occurrence analysis: {str(e)}")
             st.info("This might be due to insufficient data or data formatting issues.")
