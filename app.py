@@ -2310,7 +2310,7 @@ st.sidebar.download_button(
 )
 
 # Download Excel button
-if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
+if st.button("Prepare Excel Download", key="excel_download_btn"):
     with st.sidebar.spinner('Preparing Excel file...'):
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
