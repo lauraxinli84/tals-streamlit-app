@@ -622,16 +622,6 @@ def load_data():
         rows = data[1:]
         
         df = pd.DataFrame(rows, columns=headers)
-
-        # DEBUG: Check raw data from Google Sheets
-        st.write("DEBUG: Column headers from Google Sheets:")
-        st.write(headers)
-        st.write("DEBUG: Sample LAS raw data from Google Sheets:")
-        las_mask = df['source'] == 'LAS'
-        if las_mask.any():
-            las_sample = df[las_mask].head(5)
-            st.write("First 5 LAS rows:")
-            st.write(las_sample[['source', 'outcome_amount']].to_dict('records'))
         
         # Convert date columns 
         date_columns = ['date_opened', 'date_closed']
@@ -647,7 +637,12 @@ def load_data():
         
         for col in numeric_columns:
             if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                if col == 'outcome_amount':
+                    # Special handling for currency format
+                    df[col] = df[col].astype(str).str.replace('$', '').str.replace(',', '')
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                else:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
         
         # Optimize categorical columns
         categorical_columns = [
