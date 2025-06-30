@@ -1631,9 +1631,11 @@ with tab5:
         def clean_categorical_data(series):
             """Clean categorical data by removing nulls and numeric artifacts"""
             clean = series.copy()
-            # Remove various null representations
-            clean = clean.replace(['', ' ', 'nan', 'NaN', 'null', 'NULL', 'None'], pd.NA)
-            clean = clean.astype(str).replace('nan', pd.NA)
+            # Remove various null representations including <n/a>
+            clean = clean.replace(['', ' ', 'nan', 'NaN', 'null', 'NULL', 'None', '<n/a>', 'nan'], pd.NA)
+            clean = clean.astype(str)
+            # Remove string representations of nulls that might appear after conversion
+            clean = clean.replace(['nan', '<n/a>', 'None'], pd.NA)
             clean = clean.dropna()
             # Remove numeric artifacts (like 1, 2, 1.0, etc.)
             clean = clean[~clean.str.match(r'^\d+\.?0*$', na=False)]
