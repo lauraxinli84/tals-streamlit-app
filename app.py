@@ -21,27 +21,6 @@ import json
 import requests
 import hashlib
 
-def add_chart_export(fig, data, chart_name):
-    """Helper function to add export buttons below any chart"""
-    with st.expander("📥 Export Chart & Data", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            st.download_button(
-                label="📊 Download Chart (PNG)",
-                data=fig.to_image(format="png"),
-                file_name=f"{chart_name}.png",
-                mime="image/png",
-                key=f"img_{chart_name}_{hash(chart_name)}"
-            )
-        with col2:
-            st.download_button(
-                label="📋 Download Data (CSV)",
-                data=data.to_csv(index=False),
-                file_name=f"{chart_name}_data.csv", 
-                mime="text/csv",
-                key=f"data_{chart_name}_{hash(chart_name)}"
-            )
-
 def hash_password(password):
     """Hash a password for storing."""
     return hashlib.sha256(str.encode(password)).hexdigest()
@@ -1065,9 +1044,9 @@ with tab1:
         cases_over_time['date_opened'] = cases_over_time['date_opened'].astype(str)
         
         fig = px.line(cases_over_time, x='date_opened', y='count',
-                    title="Number of Cases Opened by Month")
+            title="Number of Cases Opened by Month",
+            labels={'date_opened': 'Date Opened', 'count': 'Number of Cases'})
         st.plotly_chart(fig, use_container_width=True)
-        add_chart_export(fig, cases_over_time, "cases_over_time")
     else:
         st.write("No valid dates available for time series visualization")
 
@@ -1081,34 +1060,34 @@ with tab2:
         st.subheader("Age Distribution")
         unique_age_dist = filtered_df.groupby('client_id')['age_intake'].first()
         fig = px.histogram(unique_age_dist, 
-                          title="Age Distribution at Intake (Unique Clients)")
+                  title="Age Distribution at Intake (Unique Clients)",
+                  labels={'age_intake': 'Age at Intake', 'count': 'Number of Clients'})
         st.plotly_chart(fig, use_container_width=True)
-        add_chart_export(fig, unique_age_dist.to_frame('age_intake').reset_index(), "age_distribution")
         
         # Gender distribution
         st.subheader("Gender Distribution")
         gender_counts = filtered_df.groupby('client_id')['gender'].first().value_counts()
         fig = px.pie(values=gender_counts.values, names=gender_counts.index,
-                    title="Gender Distribution (Unique Clients)")
+            title="Gender Distribution (Unique Clients)",
+            labels={'names': 'Gender', 'values': 'Number of Clients'})
         st.plotly_chart(fig, use_container_width=True)
-        add_chart_export(fig, gender_counts.to_frame('count').reset_index(), "gender_distribution")
     
     with col2:
         # Race distribution
         st.subheader("Race Distribution")
         race_counts = filtered_df.groupby('client_id')['race'].first().value_counts()
         fig = px.bar(x=race_counts.index, y=race_counts.values,
-                    title="Race Distribution (Unique Clients)")
+            title="Race Distribution (Unique Clients)",
+            labels={'x': 'Race', 'y': 'Number of Clients'})
         st.plotly_chart(fig, use_container_width=True)
-        add_chart_export(fig, race_counts.to_frame('count').reset_index(), "race_distribution")
         
         # Household size distribution
         st.subheader("Household Size Distribution")
         unique_household_dist = filtered_df.groupby('client_id')['household_total'].first()
         fig = px.histogram(unique_household_dist,
-                          title="Household Size Distribution (Unique Clients)")
+                  title="Household Size Distribution (Unique Clients)",
+                  labels={'household_total': 'Household Total Size', 'count': 'Number of Clients'})
         st.plotly_chart(fig, use_container_width=True)
-        add_chart_export(fig, unique_household_dist.to_frame('household_total').reset_index(), "household_size")
 
 with tab3:
     st.header("Case Analysis")
@@ -1133,9 +1112,9 @@ with tab3:
     problem_counts = display_df['legal_problem_code'].value_counts().head(10)
     
     fig = px.bar(x=problem_counts.index, y=problem_counts.values,
-                title=f"Top 10 Legal Problems {'(Excluding Food Stamps)' if exclude_foodstamps else '(Including Food Stamps)'}")
+            title=f"Top 10 Legal Problems {'(Excluding Food Stamps)' if exclude_foodstamps else '(Including Food Stamps)'}",
+            labels={'x': 'Legal Problem Code', 'y': 'Number of Cases'})
     st.plotly_chart(fig, use_container_width=True)
-    add_chart_export(fig, problem_counts.to_frame('count').reset_index(), "top_legal_problems")
 
     # County heat map
     st.subheader("Geographic Distribution")
@@ -1165,9 +1144,9 @@ with tab3:
     title += f" {'(Excluding Food Stamps)' if exclude_foodstamps else '(Including Food Stamps)'}"
 
     fig = go.Figure(data=go.Bar(x=county_counts.index, y=county_counts.values))
-    fig.update_layout(title=title, xaxis_tickangle=-45)
+    fig.update_layout(title=title, xaxis_tickangle=-45,
+                     xaxis_title="County of Dispute", yaxis_title="Number of Cases")
     st.plotly_chart(fig, use_container_width=True)
-    add_chart_export(fig, county_counts.to_frame('count').reset_index(), f"county_distribution_{view_option.lower().replace(' ', '_')}")
 
     # Case Duration Analysis
     st.subheader("Case Duration Analysis")
@@ -1248,10 +1227,9 @@ with tab3:
                     y='count',
                     color='legal_problem_code',
                     title='Legal Issues by Duration Category (Simplified)',
-                    labels={'count': 'Number of Cases', 'duration_category': 'Duration Category'}
+                    labels={'count': 'Number of Cases', 'duration_category': 'Duration Category', 'legal_problem_code': 'Legal Problem Code'}
                 )
                 st.plotly_chart(fig, use_container_width=True)
-                add_chart_export(fig, top_issues_by_duration, "duration_analysis")
         
         else:
             # Full quartile-based analysis
@@ -1314,11 +1292,10 @@ with tab3:
                 y='percentage',
                 color='legal_problem_code',
                 title='Top Legal Issues by Case Duration Category',
-                labels={'percentage': 'Percentage of Cases', 'duration_category': 'Duration Category'}
+                labels={'percentage': 'Percentage of Cases', 'duration_category': 'Duration Category', 'legal_problem_code': 'Legal Problem Code'}
             )
             
             st.plotly_chart(fig, use_container_width=True)
-            add_chart_export(fig, top_issues_by_duration, "duration_quartile_analysis")
 
 with tab4:
     # Global filter for Food Stamps
@@ -1364,21 +1341,20 @@ with tab4:
                         .head(10))
     
     fig = px.bar(top_problems_by_area, 
-                x='count', 
-                y='legal_problem_code',
-                color='area_type',
-                barmode='group',
-                title='Top 10 Legal Problems by Urban/Rural Areas',
-                labels={'count': 'Number of Cases', 
-                   'legal_problem_code': 'Legal Problem',
-                   'area_type': 'Area Type'})
+            x='count', 
+            y='legal_problem_code',
+            color='area_type',
+            barmode='group',
+            title='Top 10 Legal Problems by Urban/Rural Areas',
+            labels={'count': 'Number of Cases', 
+               'legal_problem_code': 'Legal Problem Code',
+               'area_type': 'Area Type'})
     fig.update_layout(
     showlegend=True,
     xaxis_title="Number of Cases",
     yaxis_title="Legal Problem",
     )
     st.plotly_chart(fig, use_container_width=True)
-    add_chart_export(fig, top_problems_by_area, "urban_rural_analysis")
 
     # Age Group Analysis
     st.subheader("Age Group Analysis")
@@ -1401,11 +1377,12 @@ with tab4:
     top_problems_by_age = age_problems.sort_values('count', ascending=False).groupby('age_group').head(5)
     
     fig = px.bar(top_problems_by_age,
-                x='age_group',
-                y='count',
-                color='legal_problem_code',
-                title='5 Most Common Legal Problems by Age Group',
-                category_orders={'age_group': ['18-25', '26-35', '36-50', '51-65', '65+']})
+            x='age_group',
+            y='count',
+            color='legal_problem_code',
+            title='5 Most Common Legal Problems by Age Group',
+            category_orders={'age_group': ['18-25', '26-35', '36-50', '51-65', '65+']},
+            labels={'age_group': 'Age Group', 'count': 'Number of Cases', 'legal_problem_code': 'Legal Problem Code'})
     fig.update_layout(
         showlegend=True,
         legend=dict(
@@ -1418,7 +1395,6 @@ with tab4:
         )
     )
     st.plotly_chart(fig, use_container_width=True)
-    add_chart_export(fig, top_problems_by_age, "age_group_analysis")
 
     # Analyze problems by gender
     gender_problems = display_df.groupby(['gender', 'legal_problem_code']).size().reset_index(name='count')
@@ -1429,10 +1405,11 @@ with tab4:
 
     # Create the gender breakdown plot
     fig_gender = px.bar(top_problems_by_gender,
-                    x='gender',
-                    y='count',
-                    color='legal_problem_code',
-                    title='Top 5 Legal Problems by Gender')
+                x='gender',
+                y='count',
+                color='legal_problem_code',
+                title='Top 5 Legal Problems by Gender',
+                labels={'gender': 'Gender', 'count': 'Number of Cases', 'legal_problem_code': 'Legal Problem Code'})
 
     fig_gender.update_layout(
         showlegend=True,
@@ -1448,7 +1425,6 @@ with tab4:
 
     # Display the plot
     st.plotly_chart(fig_gender, use_container_width=True)
-    add_chart_export(fig_gender, top_problems_by_gender, "gender_analysis")
 
     # Co-occurrence Analysis
     @st.cache_data
@@ -1604,8 +1580,8 @@ with tab5:
             fig = px.bar(
                 x=value_counts.index,
                 y=value_counts.values,
-                title=f"Distribution of {category_col}",
-                labels={'x': category_col, 'y': 'Count'}
+                title=f"Distribution of {category_col.replace('_', ' ').title()}",
+                labels={'x': category_col.replace('_', ' ').title(), 'y': 'Count'}
             )
             fig.update_xaxes(tickangle=45)
 
@@ -1615,7 +1591,8 @@ with tab5:
             fig = px.pie(
                 values=value_counts.values,
                 names=value_counts.index,
-                title=f"Distribution of {category_col}"
+                title=f"Distribution of {category_col.replace('_', ' ').title()}",
+                labels={'names': category_col.replace('_', ' ').title(), 'values': 'Count'}
             )
 
         elif basic_plot_type == "Line Chart":
@@ -1628,18 +1605,18 @@ with tab5:
                 x='month_year',
                 y=0,
                 title="Cases Over Time",
-                labels={'month_year': 'Month', '0': 'Number of Cases'}
+                labels={'month_year': 'Month/Year', '0': 'Number of Cases'}
             )
             fig.update_xaxes(tickangle=45)
-        
 
         elif basic_plot_type == "Histogram":
             numeric_col = st.selectbox("Select Numeric Column", options=safe_numeric_columns)
             fig = px.histogram(
                 display_df,
                 x=numeric_col,
-                title=f"Distribution of {numeric_col}",
-                nbins=30
+                title=f"Distribution of {numeric_col.replace('_', ' ').title()}",
+                nbins=30,
+                labels={numeric_col: numeric_col.replace('_', ' ').title(), 'count': 'Number of Cases'}
             )
 
         elif basic_plot_type == "Box Plot":
@@ -1649,7 +1626,9 @@ with tab5:
                 display_df,
                 x=category_col,
                 y=numeric_col,
-                title=f"{numeric_col} by {category_col}"
+                title=f"{numeric_col.replace('_', ' ').title()} by {category_col.replace('_', ' ').title()}",
+                labels={category_col: category_col.replace('_', ' ').title(), 
+                       numeric_col: numeric_col.replace('_', ' ').title()}
             )
             fig.update_xaxes(tickangle=45)
 
@@ -1659,24 +1638,6 @@ with tab5:
             height=600
         )
         st.plotly_chart(fig, use_container_width=True)
-        
-        # Add export functionality based on chart type
-        if basic_plot_type == "Bar Chart":
-            chart_data = value_counts.to_frame('count').reset_index()
-            chart_data.columns = [category_col, 'count']
-            add_chart_export(fig, chart_data, f"custom_bar_{category_col}")
-        elif basic_plot_type == "Pie Chart":
-            chart_data = value_counts.to_frame('count').reset_index()
-            chart_data.columns = [category_col, 'count']
-            add_chart_export(fig, chart_data, f"custom_pie_{category_col}")
-        elif basic_plot_type == "Line Chart":
-            add_chart_export(fig, cases_by_month, "custom_line_cases_over_time")
-        elif basic_plot_type == "Histogram":
-            chart_data = display_df[[numeric_col]].dropna()
-            add_chart_export(fig, chart_data, f"custom_histogram_{numeric_col}")
-        elif basic_plot_type == "Box Plot":
-            chart_data = display_df[[category_col, numeric_col]].dropna()
-            add_chart_export(fig, chart_data, f"custom_box_{numeric_col}_by_{category_col}")
 
     except Exception as e:
         st.error(f"An error occurred while creating the basic visualization: {str(e)}")
@@ -1703,10 +1664,9 @@ with tab5:
         if chart_type == "Histogram":
             st.info("Showing raw distribution of outcome amounts")
             fig = px.histogram(df_plot, x="outcome_amount", nbins=30,
-                            title="Distribution of Outcome Amount")
+                title="Distribution of Outcome Amount",
+                labels={'outcome_amount': 'Outcome Amount', 'count': 'Number of Cases'})
             st.plotly_chart(fig, use_container_width=True)
-            chart_data = df_plot[["outcome_amount"]].dropna()
-            add_chart_export(fig, chart_data, "outcome_amount_histogram")
 
         elif chart_type == "Box Plot":
             group_col = st.selectbox("Group by:", [
@@ -1714,11 +1674,10 @@ with tab5:
                 "income_eligible", "income_waiver_status", "asset_eligible"
             ])
             fig = px.box(df_plot, x=group_col, y="outcome_amount",
-                        title=f"Outcome Amount by {group_col}")
+                        title=f"Outcome Amount by {group_col.replace('_', ' ').title()}",
+                        labels={group_col: group_col.replace('_', ' ').title(), 'outcome_amount': 'Outcome Amount'})
             fig.update_layout(xaxis_tickangle=45)
             st.plotly_chart(fig, use_container_width=True)
-            chart_data = df_plot[[group_col, "outcome_amount"]].dropna()
-            add_chart_export(fig, chart_data, f"outcome_amount_box_{group_col}")
 
         elif chart_type == "Bar Chart":
             group_col = st.selectbox("Group by:", [
@@ -1731,11 +1690,10 @@ with tab5:
             summary = summary[summary["outcome_amount"].notna() & (summary["outcome_amount"] > 0)]
 
             fig = px.bar(summary, x=group_col, y="outcome_amount",
-                        title=f"{agg_func} Outcome Amount by {group_col}",
-                        labels={"outcome_amount": f"{agg_func} Outcome Amount"})
+                        title=f"{agg_func} Outcome Amount by {group_col.replace('_', ' ').title()}",
+                        labels={group_col: group_col.replace('_', ' ').title(), "outcome_amount": f"{agg_func} Outcome Amount"})
             fig.update_layout(xaxis_tickangle=45)
             st.plotly_chart(fig, use_container_width=True)
-            add_chart_export(fig, summary, f"outcome_amount_bar_{group_col}_{agg_func}")
 
     # === LEGAL PROBLEMS ANALYSIS ===
     elif plot_focus == "Legal Problems":
@@ -1763,13 +1721,12 @@ with tab5:
                     y="count",
                     color="legal_problem_code",
                     barmode='group',
-                    title=f"Legal Problems by {category}",
-                    labels={"count": "Number of Cases"},
+                    title=f"Legal Problems by {category.replace('_', ' ').title()}",
+                    labels={"count": "Number of Cases", category: category.replace('_', ' ').title(), "legal_problem_code": "Legal Problem Code"},
                     category_orders={"legal_problem_code": sorted(selected_codes)}
                 )
                 fig.update_layout(xaxis_tickangle=45)
                 st.plotly_chart(fig, use_container_width=True)
-                add_chart_export(fig, count_df, f"legal_problems_by_{category}")
             except Exception as e:
                 st.error(f"Error generating plot: {str(e)}")
 
@@ -1783,12 +1740,10 @@ with tab5:
             df_plot = df_plot[df_plot[numeric_col].notna()]
 
             fig = px.box(df_plot, x="legal_problem_code", y=numeric_col,
-                        title=f"{numeric_col} by Legal Problem Code",
-                        labels={numeric_col: numeric_col, "legal_problem_code": "Legal Problem"})
+                        title=f"{numeric_col.replace('_', ' ').title()} by Legal Problem Code",
+                        labels={numeric_col: numeric_col.replace('_', ' ').title(), "legal_problem_code": "Legal Problem Code"})
             fig.update_layout(xaxis_tickangle=45)
             st.plotly_chart(fig, use_container_width=True)
-            chart_data = df_plot[["legal_problem_code", numeric_col]].dropna()
-            add_chart_export(fig, chart_data, f"legal_problems_numeric_{numeric_col}")
 
 with tab6:
     st.header("DV Risk Prediction Tool")
