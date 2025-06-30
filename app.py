@@ -2143,6 +2143,20 @@ with tab7:  # Case Time Prediction tab
         submitted = st.form_submit_button("Predict Case Time", disabled=(validation_error is not None))
 
     if submitted:
+        st.write("DEBUG: Form was submitted!")
+        st.write("DEBUG: All form values:")
+        st.write(f"Age: {age}")
+        st.write(f"Gender: {gender}")
+        st.write(f"Legal problem code: {legal_problem_code}")
+        st.write(f"Household total: {household_total}")
+        
+         # Check for any empty/invalid selections
+        if not gender or not race or not legal_problem_code:
+            st.error("DEBUG: Some required fields are empty")
+            st.write(f"Gender: '{gender}', Race: '{race}', Legal problem: '{legal_problem_code}'")
+        else:
+            st.write("DEBUG: All required fields have values")
+        
         # Prepare client data dictionary with exactly the features used in training
         client_data = {
             'age_intake': age,
@@ -2162,18 +2176,8 @@ with tab7:  # Case Time Prediction tab
             'legal_problem_code': legal_problem_code
         }
         
-        # DEBUG: Check what data is being sent
-        st.write("Debug - Client data being sent:")
-        for key, value in client_data.items():
-            st.write(f"{key}: {value} (type: {type(value)})")
-        
         # Get prediction
-        try:
-            result = predict_case_time(client_data)
-            st.write(f"Debug - Result received: {result}")
-        except Exception as e:
-            st.error(f"Debug - Error in predict_case_time: {str(e)}")
-            result = {'predicted_hours': None}
+        result = predict_case_time(client_data)
         
         if result['predicted_hours'] is not None:
             # Display results
