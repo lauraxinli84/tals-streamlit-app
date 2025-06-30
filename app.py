@@ -704,7 +704,7 @@ def handle_file_upload():
             st.session_state.upload_stage = 'initial'
             st.session_state.processed_data = None
             st.session_state.upload_success = False
-            st.experimental_rerun()
+            st.rerun()
         return
         
     if st.session_state.upload_stage == 'initial':
@@ -754,7 +754,7 @@ def handle_file_upload():
                     # Store in session state
                     st.session_state.processed_data = df_processed
                     st.session_state.upload_stage = 'review'
-                    st.experimental_rerun()
+                    st.rerun()
                     
             except Exception as e:
                 st.error(f"Error processing file: {str(e)}")
@@ -805,21 +805,21 @@ def handle_file_upload():
                         st.session_state.upload_success = True
                         st.session_state.upload_stage = 'initial'
                         st.session_state.processed_data = None
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error("Failed to save data to Google Drive. Please try again.")
             
             if st.button("Cancel"):
                 st.session_state.upload_stage = 'initial'
                 st.session_state.processed_data = None
-                st.experimental_rerun()
+                st.rerun()
                 
         except Exception as e:
             st.error(f"Error processing existing data: {str(e)}")
             if st.button("Start Over"):
                 st.session_state.upload_stage = 'initial'
                 st.session_state.processed_data = None
-                st.experimental_rerun()
+                st.rerun()
 
 def download_model_from_drive(file_id, model_name):
     """
@@ -888,7 +888,7 @@ if st.sidebar.button('Refresh Data'):
     # Clear Streamlit's cache
     st.cache_data.clear()
     st.session_state.data_loaded = False
-    st.experimental_rerun()
+    st.rerun()
 
 # Title and description
 st.title("TALS Data Explorer")
