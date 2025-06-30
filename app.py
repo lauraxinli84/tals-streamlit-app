@@ -14,7 +14,7 @@ import re
 import joblib
 import shap
 from streamlit_shap import st_shap
-from preprocessing import preprocess_client_data, interpret_risk_score
+from preprocessing import preprocess_client_data, interpret_risk_score, predict_case_time_with_model, predict_case_time
 import gspread
 from google.oauth2.service_account import Credentials
 import json
