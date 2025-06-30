@@ -2162,21 +2162,8 @@ with tab7:  # Case Time Prediction tab
             'legal_problem_code': legal_problem_code
         }
         
-        # DEBUG: Check the client_data dictionary
-        st.write("DEBUG: Client data dictionary:")
-        for key, value in client_data.items():
-            st.write(f"  {key}: '{value}' (type: {type(value).__name__})")
-        
-        # Get prediction with error handling
-        try:
-            st.write("DEBUG: Calling predict_case_time...")
-            result = predict_case_time(client_data)
-            st.write(f"DEBUG: Prediction result: {result}")
-        except Exception as e:
-            st.error(f"DEBUG: Exception in predict_case_time: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
-            result = {'predicted_hours': None}
+        # Get prediction
+        result = predict_case_time(client_data)
         
         if result['predicted_hours'] is not None:
             # Display results
