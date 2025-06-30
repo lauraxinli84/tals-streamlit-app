@@ -1433,8 +1433,17 @@ with tab4:
         Calculate co-occurrence matrix using vectorized operations
         Returns both the matrix and a DataFrame of problem frequencies
         """
-        # First get unique client-problem combinations
-        unique_client_problems = df.drop_duplicates(['client_id', 'legal_problem_code'])
+        # First get unique client-problem combinations AND remove any blank/null legal problem codes
+        unique_client_problems = df.dropna(subset=['client_id', 'legal_problem_code'])
+        
+        # Also filter out empty strings and whitespace-only entries
+        unique_client_problems = unique_client_problems[
+            (unique_client_problems['legal_problem_code'].str.strip() != '') &
+            (unique_client_problems['legal_problem_code'].notna())
+        ]
+        
+        # Remove duplicates
+        unique_client_problems = unique_client_problems.drop_duplicates(['client_id', 'legal_problem_code'])
         
         # Create pivot table of client-problem relationships
         pivot = pd.crosstab(unique_client_problems['client_id'], 
@@ -1463,8 +1472,12 @@ with tab4:
             st.error("Missing required columns for co-occurrence analysis.")
             return
         
-        # Filter out rows with missing values in key columns
+        # Filter out rows with missing values AND blank legal problem codes
         analysis_df = display_df.dropna(subset=['client_id', 'legal_problem_code'])
+        analysis_df = analysis_df[
+            (analysis_df['legal_problem_code'].str.strip() != '') &
+            (analysis_df['legal_problem_code'].notna())
+        ]
         
         if len(analysis_df) < 2:
             st.warning("Not enough valid data for co-occurrence analysis after removing missing values.")
@@ -1474,8 +1487,12 @@ with tab4:
             # Calculate co-occurrence matrix
             cooccurrence_matrix, problem_frequencies = calculate_cooccurrence_matrix(analysis_df)
             
-            # Sort problems by frequency for better selectbox organization
-            sorted_problems = problem_frequencies.sort_values(ascending=False).index.tolist()
+            if len(problem_frequencies) == 0:
+                st.warning("No valid legal problem codes found for co-occurrence analysis.")
+                return
+            
+            # Sort problems by their code number (natural order)
+            sorted_problems = sorted(problem_frequencies.index.tolist())
             
             # Create a selectbox with CLIENT counts (not case counts)
             selected_problem = st.selectbox(
