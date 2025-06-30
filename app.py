@@ -1726,8 +1726,9 @@ with tab5:
         exclude_zeros = st.checkbox("Exclude Outcome Amount = 0", value=True)
 
         df_plot = display_df.copy()
-        # Clean dollar signs and commas before converting to numeric
-        df_plot["outcome_amount"] = df_plot["outcome_amount"].astype(str).str.replace('$', '').str.replace(',', '')
+        # Force convert currency data type to string first, then to numeric
+        df_plot["outcome_amount"] = df_plot["outcome_amount"].astype(str).str.replace('$', '').str.replace(',', '').str.replace('nan', '')
+        df_plot["outcome_amount"] = df_plot["outcome_amount"].replace('', np.nan)
         df_plot["outcome_amount"] = pd.to_numeric(df_plot["outcome_amount"], errors="coerce")
         df_plot = df_plot[df_plot["outcome_amount"].notna()]
         if exclude_zeros:
@@ -1818,9 +1819,10 @@ with tab5:
             ])
 
             df_plot = display_df.copy()
-            # Clean dollar signs if working with outcome_amount
+            # Handle currency data type for outcome_amount
             if numeric_col == 'outcome_amount':
-                df_plot[numeric_col] = df_plot[numeric_col].astype(str).str.replace('$', '').str.replace(',', '')
+                df_plot[numeric_col] = df_plot[numeric_col].astype(str).str.replace('$', '').str.replace(',', '').str.replace('nan', '')
+                df_plot[numeric_col] = df_plot[numeric_col].replace('', np.nan)
             df_plot[numeric_col] = pd.to_numeric(df_plot[numeric_col], errors="coerce")
             df_plot = df_plot[df_plot[numeric_col].notna()]
 
