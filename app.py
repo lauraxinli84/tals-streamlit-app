@@ -984,6 +984,10 @@ date_mask = filtered_df['date_opened'].notna()
 date_df = filtered_df[date_mask].copy()
 unknown_df = filtered_df[~date_mask].copy()
 
+# DEBUG: Check before date processing
+st.write(f"DEBUG: date_df LAS outcome amounts: {date_df[date_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
+st.write(f"DEBUG: unknown_df LAS outcome amounts: {unknown_df[unknown_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
+
 # Apply date filter only to rows with valid dates
 if not date_df.empty:
     # Apply date range filter using the date_range from the sidebar
@@ -991,12 +995,13 @@ if not date_df.empty:
         (date_df['date_opened'].dt.date >= date_range[0]) &
         (date_df['date_opened'].dt.date <= date_range[1])
     ]
+
+    # DEBUG: Check each piece before concat
+    st.write(f"DEBUG: date_filtered LAS outcome amounts: {date_filtered[date_filtered['source'] == 'LAS']['outcome_amount'].notna().sum()}")
+    st.write(f"DEBUG: unknown_df LAS outcome amounts: {unknown_df[unknown_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
     
     # Combine filtered date rows with unknown date rows
     filtered_df = pd.concat([date_filtered, unknown_df])
-
-    # DEBUG: Check outcome amounts after date filtering
-    st.write(f"DEBUG: After date filtering, LAS outcome amounts: {filtered_df[filtered_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
 
 # Create a mask for valid closed dates (not null)
 closed_date_mask = filtered_df['date_closed'].notna()
@@ -1015,9 +1020,6 @@ if not closed_date_df.empty:
     
     # Update filtered_df to include the filtered closed date rows and unknown closed date rows
     filtered_df = pd.concat([closed_date_filtered, closed_unknown_df])
-
-    # DEBUG: Check outcome amounts after closed date filtering  
-    st.write(f"DEBUG: After closed date filtering, LAS outcome amounts: {filtered_df[filtered_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
 
 # Apply county filter if counties are selected
 if selected_counties:
