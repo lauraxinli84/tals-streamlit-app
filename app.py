@@ -1726,13 +1726,41 @@ with tab5:
         exclude_zeros = st.checkbox("Exclude Outcome Amount = 0", value=True)
 
         df_plot = display_df.copy()
+
+        # DEBUG: Check the data before processing
+        st.write("🔍 **Debug Info:**")
+        st.write(f"Total rows in filtered data: {len(df_plot)}")
+        st.write(f"Outcome amount column data type: {df_plot['outcome_amount'].dtype}")
+        st.write("Sample outcome amount values:")
+        st.write(df_plot['outcome_amount'].head(10).tolist())
+        st.write("Unique outcome amount values (first 20):")
+        st.write(df_plot['outcome_amount'].unique()[:20])
+        st.write(f"Non-null outcome amounts: {df_plot['outcome_amount'].notna().sum()}")
+        
         # Force convert currency data type to string first, then to numeric
         df_plot["outcome_amount"] = df_plot["outcome_amount"].astype(str).str.replace('$', '').str.replace(',', '').str.replace('nan', '')
         df_plot["outcome_amount"] = df_plot["outcome_amount"].replace('', np.nan)
+        
+        st.write("After string conversion:")
+        st.write(df_plot['outcome_amount'].head(10).tolist())
+        
         df_plot["outcome_amount"] = pd.to_numeric(df_plot["outcome_amount"], errors="coerce")
+        
+        st.write(f"After numeric conversion: {df_plot['outcome_amount'].notna().sum()} valid numbers")
+        st.write("Sample converted values:")
+        st.write(df_plot['outcome_amount'].dropna().head(10).tolist())
+        
         df_plot = df_plot[df_plot["outcome_amount"].notna()]
+        
+        st.write(f"Final dataset size: {len(df_plot)} rows")
+        
         if exclude_zeros:
             df_plot = df_plot[df_plot["outcome_amount"] > 0]
+            st.write(f"After excluding zeros: {len(df_plot)} rows")
+        
+        if len(df_plot) == 0:
+            st.error("❌ No valid outcome amount data found!")
+            st.stop()
 
         if chart_type == "Histogram":
             st.info("Showing raw distribution of outcome amounts")
