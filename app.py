@@ -995,6 +995,9 @@ if not date_df.empty:
     # Combine filtered date rows with unknown date rows
     filtered_df = pd.concat([date_filtered, unknown_df])
 
+    # DEBUG: Check outcome amounts after date filtering
+    st.write(f"DEBUG: After date filtering, LAS outcome amounts: {filtered_df[filtered_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
+
 # Create a mask for valid closed dates (not null)
 closed_date_mask = filtered_df['date_closed'].notna()
 
@@ -1012,6 +1015,9 @@ if not closed_date_df.empty:
     
     # Update filtered_df to include the filtered closed date rows and unknown closed date rows
     filtered_df = pd.concat([closed_date_filtered, closed_unknown_df])
+
+    # DEBUG: Check outcome amounts after closed date filtering  
+    st.write(f"DEBUG: After closed date filtering, LAS outcome amounts: {filtered_df[filtered_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
 
 # Apply county filter if counties are selected
 if selected_counties:
@@ -1726,37 +1732,6 @@ with tab5:
         exclude_zeros = st.checkbox("Exclude Outcome Amount = 0", value=True)
 
         df_plot = display_df.copy()
-
-        # DEBUG: Check the data more thoroughly
-        st.write("🔍 **Extended Debug Info:**")
-        st.write(f"Total rows in filtered data: {len(df_plot)}")
-        st.write(f"Outcome amount column data type: {df_plot['outcome_amount'].dtype}")
-        
-        # Check what's actually in the source dropdown selection
-        st.write("Current source filter selection:")
-        st.write(selected_sources)  # This should show what organizations are selected
-        
-        # Check the original unfiltered data
-        st.write("**Original data before filtering:**")
-        st.write(f"Total outcome amounts in full dataset: {df['outcome_amount'].notna().sum()}")
-        st.write("Sample outcome amounts from full dataset:")
-        st.write(df['outcome_amount'].dropna().head(10).tolist())
-        
-        # Check what sources have outcome data
-        outcome_by_source = df.groupby('source')['outcome_amount'].agg(['count', lambda x: x.notna().sum()])
-        outcome_by_source.columns = ['total_cases', 'cases_with_outcome']
-        st.write("**Outcome amounts by organization:**")
-        st.write(outcome_by_source)
-        
-        # Check the filtered data
-        st.write(f"**After applying sidebar filters:**")
-        st.write(f"LAS cases in filtered data: {(display_df['source'] == 'LAS').sum()}")
-        st.write(f"Non-null outcome amounts in filtered data: {display_df['outcome_amount'].notna().sum()}")
-        
-        # Sample some actual LAS data
-        las_data = display_df[display_df['source'] == 'LAS']['outcome_amount'].head(20)
-        st.write("Sample LAS outcome amounts in filtered data:")
-        st.write(las_data.tolist())
         
         if exclude_zeros:
             df_plot = df_plot[df_plot["outcome_amount"] > 0]
