@@ -2163,8 +2163,17 @@ with tab7:  # Case Time Prediction tab
             'legal_problem_code': legal_problem_code
         }
         
-        # Get prediction
-        result = predict_case_time(client_data)
+        # Load model and get prediction
+        case_time_model = load_case_time_model()
+        if case_time_model is None:
+            result = {
+                'predicted_hours': None,
+                'complexity_category': "Error", 
+                'resource_allocation': "Could not load prediction model"
+            }
+        else:
+            # Pass the model directly to avoid import issues
+            result = predict_case_time_with_model(client_data, case_time_model)
         
         if result['predicted_hours'] is not None:
             # Display results
