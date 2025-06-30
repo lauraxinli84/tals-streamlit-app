@@ -1447,79 +1447,111 @@ with tab4:
         problem_frequencies = pivot.sum()
         
         return cooccurrence, problem_frequencies
-
+    
     def display_cooccurrence_analysis(display_df):
         """Display co-occurrence analysis with optimized computations"""
         st.subheader("Legal Problem Co-occurrence Analysis")
         
-        # Calculate co-occurrence matrix
-        cooccurrence_matrix, problem_frequencies = calculate_cooccurrence_matrix(display_df)
+        # Check if we have enough data
+        if len(display_df) < 2:
+            st.warning("Not enough data for co-occurrence analysis. Need at least 2 cases.")
+            return
         
-        # Sort problems by frequency for better selectbox organization
-        sorted_problems = problem_frequencies.index.tolist()
+        # Check if we have the required columns
+        if 'client_id' not in display_df.columns or 'legal_problem_code' not in display_df.columns:
+            st.error("Missing required columns for co-occurrence analysis.")
+            return
         
-        # Create a selectbox with problems sorted by frequency
-        selected_problem = st.selectbox(
-            "Select a Legal Problem to see co-occurring issues:",
-            options=sorted_problems,
-            format_func=lambda x: f"{x} ({problem_frequencies[x]:,} cases)"
-        )
+        # Filter out rows with missing values in key columns
+        analysis_df = display_df.dropna(subset=['client_id', 'legal_problem_code'])
         
-        if selected_problem:
-            # Get co-occurrences for selected problem
-            cooccurrences = cooccurrence_matrix[selected_problem].sort_values(ascending=False)
+        if len(analysis_df) < 2:
+            st.warning("Not enough valid data for co-occurrence analysis after removing missing values.")
+            return
+        
+        try:
+            # Calculate co-occurrence matrix
+            cooccurrence_matrix, problem_frequencies = calculate_cooccurrence_matrix(analysis_df)
             
-            # Remove self-reference and zero counts
-            cooccurrences = cooccurrences[
-                (cooccurrences.index != selected_problem) & 
-                (cooccurrences > 0)
-            ]
+            # Sort problems by frequency for better selectbox organization
+            sorted_problems = problem_frequencies.sort_values(ascending=False).index.tolist()
             
-            # Calculate percentages
-            total_cases = problem_frequencies[selected_problem]
-            cooccurrence_pcts = (cooccurrences / total_cases * 100).round(1)
-            
-            # Create results dataframe
-            results_df = pd.DataFrame({
-                'Co-occurring Problem': cooccurrences.index,
-                'Number of Clients with Both Issues': cooccurrences.values,
-                'Percentage of Clients with Both Issues': cooccurrence_pcts.values
-            })
-            
-            # Display metrics
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Number of Unique Clients With Selected Issue", f"{total_cases:,}")
-            with col2:
-                st.metric("Co-occurring Problems", f"{len(cooccurrences):,}")
-            with col3:
-                most_common = results_df.iloc[0]['Co-occurring Problem'] if not results_df.empty else "None"
-                st.metric("Most Common Co-occurrence", most_common)
-            
-            # Display results
-            st.markdown(f"""
-            #### Co-occurrence Analysis for: {selected_problem}
-            The table below shows other legal problems that appear for clients who have a {selected_problem} case.
-            """)
-            
-            # Create styled dataframe
-            styled_df = results_df.style\
-                .format({
-                    'Number of Clients with Both Issues': '{:,.0f}',
-                    'Percentage of Clients with Both Issues': '{:.1f}%'
-                })\
-                .background_gradient(subset=['Percentage of Clients with Both Issues'], cmap='Blues')
-            
-            # Display the styled table
-            st.dataframe(styled_df, width=800, height=400)
-            
-            # Add download option for the co-occurrence data
-            st.download_button(
-                "Download Co-occurrence Data",
-                results_df.to_csv(index=False),
-                file_name=f"cooccurrence_{selected_problem.replace('/', '_')}.csv",
-                mime="text/csv"
+            # Create a selectbox with problems sorted by frequency
+            selected_problem = st.selectbox(
+                "Select a Legal Problem to see co-occurring issues:",
+                options=sorted_problems,
+                format_func=lambda x: f"{x} ({problem_frequencies[x]:,} clients)"
             )
+            
+            if selected_problem:
+                # Get co-occurrences for selected problem
+                cooccurrences = cooccurrence_matrix[selected_problem].sort_values(ascending=False)
+                
+                # Remove self-reference and zero counts
+                cooccurrences = cooccurrences[
+                    (cooccurrences.index != selected_problem) & 
+                    (cooccurrences > 0)
+                ]
+                
+                if len(cooccurrences) == 0:
+                    st.info(f"No co-occurring problems found for {selected_problem}. This means clients with this issue typically don't have other legal problems in the dataset.")
+                    return
+                
+                # Calculate percentages
+                total_cases = problem_frequencies[selected_problem]
+                cooccurrence_pcts = (cooccurrences / total_cases * 100).round(1)
+                
+                # Create results dataframe
+                results_df = pd.DataFrame({
+                    'Co-occurring Problem': cooccurrences.index,
+                    'Number of Clients with Both Issues': cooccurrences.values,
+                    'Percentage of Clients with Both Issues': cooccurrence_pcts.values
+                })
+                
+                # Display metrics
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Unique Clients With Selected Issue", f"{total_cases:,}")
+                with col2:
+                    st.metric("Co-occurring Problems Found", f"{len(cooccurrences):,}")
+                with col3:
+                    if not results_df.empty:
+                        most_common = results_df.iloc[0]['Co-occurring Problem']
+                        most_common_pct = results_df.iloc[0]['Percentage of Clients with Both Issues']
+                        st.metric("Most Common Co-occurrence", f"{most_common_pct:.1f}%")
+                    else:
+                        st.metric("Most Common Co-occurrence", "None")
+                
+                # Display results
+                st.markdown(f"""
+                #### Co-occurrence Analysis for: {selected_problem}
+                The table below shows other legal problems that appear for clients who have a {selected_problem} case.
+                """)
+                
+                # Create styled dataframe
+                styled_df = results_df.style\
+                    .format({
+                        'Number of Clients with Both Issues': '{:,.0f}',
+                        'Percentage of Clients with Both Issues': '{:.1f}%'
+                    })\
+                    .background_gradient(subset=['Percentage of Clients with Both Issues'], cmap='Blues')
+                
+                # Display the styled table
+                st.dataframe(styled_df, width=800, height=400)
+                
+                # Add download option for the co-occurrence data
+                st.download_button(
+                    "Download Co-occurrence Data",
+                    results_df.to_csv(index=False),
+                    file_name=f"cooccurrence_{selected_problem.replace('/', '_').replace(' ', '_')}.csv",
+                    mime="text/csv"
+                )
+                
+        except Exception as e:
+            st.error(f"Error in co-occurrence analysis: {str(e)}")
+            st.info("This might be due to insufficient data or data formatting issues.")
+    
+    # Call the function (make sure this is properly indented within your tab)
     display_cooccurrence_analysis(display_df)
 
 with tab5:
