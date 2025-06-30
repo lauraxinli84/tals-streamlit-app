@@ -530,18 +530,19 @@ def standardize_new_data(df, upload_source):
             lambda x: x if x in ['Yes', 'No'] else np.nan
         )
 
-    # Normalize income_eligible
+    # Normalize income_eligible 
     if 'income_eligible' in df.columns:
         df['income_eligible'] = df['income_eligible'].astype(str).str.strip().str.capitalize()
+        # Only convert Yes/No, leave everything else as-is (blanks will stay as empty strings)
         df['income_eligible'] = df['income_eligible'].apply(
-            lambda x: x if x in ['Yes', 'No'] else np.nan
+            lambda x: x if x in ['Yes', 'No'] else ''
         )
-
-    # Normalize asset_eligible
+    
+    # Normalize asset_eligible 
     if 'asset_eligible' in df.columns:
         df['asset_eligible'] = df['asset_eligible'].astype(str).str.strip().str.capitalize()
         df['asset_eligible'] = df['asset_eligible'].apply(
-            lambda x: x if x in ['Yes', 'No'] else np.nan
+            lambda x: x if x in ['Yes', 'No'] else ''
         )
 
     # Add missing columns with nan
