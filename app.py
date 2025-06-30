@@ -649,7 +649,11 @@ def load_data():
         for col in categorical_columns:
             if col in df.columns:
                 df[col] = pd.Categorical(df[col])
-            
+
+        # DEBUG: Check outcome amounts after loading
+        st.write(f"DEBUG LOAD_DATA: LAS outcome amounts after loading: {df[df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
+        st.write(f"DEBUG LOAD_DATA: Sample LAS outcome values: {df[df['source'] == 'LAS']['outcome_amount'].head(10).tolist()}")
+        
         return df
         
     except Exception as e:
@@ -913,15 +917,8 @@ selected_sources = st.sidebar.multiselect(
 
 # Apply the filters
 filtered_df = df.copy()
-# DEBUG: Check outcome amounts in original data
-st.write(f"DEBUG: Original data LAS outcome amounts: {df[df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
-st.write(f"DEBUG: Original data total LAS rows: {(df['source'] == 'LAS').sum()}")
 
 filtered_df = filtered_df[filtered_df['source'].isin(selected_sources)]
-
-# DEBUG: Check outcome amounts right after source filtering
-st.write(f"DEBUG: After source filtering, LAS outcome amounts: {filtered_df[filtered_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
-st.write(f"DEBUG: Total LAS rows after source filtering: {(filtered_df['source'] == 'LAS').sum()}")
 
 # Calculate date range based on actual data values - simply use normalized dates
 date_opened_min = pd.to_datetime(df['date_opened']).min().date()
