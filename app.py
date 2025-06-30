@@ -1727,32 +1727,36 @@ with tab5:
 
         df_plot = display_df.copy()
 
-        # DEBUG: Check the data before processing
-        st.write("🔍 **Debug Info:**")
+        # DEBUG: Check the data more thoroughly
+        st.write("🔍 **Extended Debug Info:**")
         st.write(f"Total rows in filtered data: {len(df_plot)}")
         st.write(f"Outcome amount column data type: {df_plot['outcome_amount'].dtype}")
-        st.write("Sample outcome amount values:")
-        st.write(df_plot['outcome_amount'].head(10).tolist())
-        st.write("Unique outcome amount values (first 20):")
-        st.write(df_plot['outcome_amount'].unique()[:20])
-        st.write(f"Non-null outcome amounts: {df_plot['outcome_amount'].notna().sum()}")
         
-        # Force convert currency data type to string first, then to numeric
-        df_plot["outcome_amount"] = df_plot["outcome_amount"].astype(str).str.replace('$', '').str.replace(',', '').str.replace('nan', '')
-        df_plot["outcome_amount"] = df_plot["outcome_amount"].replace('', np.nan)
+        # Check what's actually in the source dropdown selection
+        st.write("Current source filter selection:")
+        st.write(selected_sources)  # This should show what organizations are selected
         
-        st.write("After string conversion:")
-        st.write(df_plot['outcome_amount'].head(10).tolist())
+        # Check the original unfiltered data
+        st.write("**Original data before filtering:**")
+        st.write(f"Total outcome amounts in full dataset: {df['outcome_amount'].notna().sum()}")
+        st.write("Sample outcome amounts from full dataset:")
+        st.write(df['outcome_amount'].dropna().head(10).tolist())
         
-        df_plot["outcome_amount"] = pd.to_numeric(df_plot["outcome_amount"], errors="coerce")
+        # Check what sources have outcome data
+        outcome_by_source = df.groupby('source')['outcome_amount'].agg(['count', lambda x: x.notna().sum()])
+        outcome_by_source.columns = ['total_cases', 'cases_with_outcome']
+        st.write("**Outcome amounts by organization:**")
+        st.write(outcome_by_source)
         
-        st.write(f"After numeric conversion: {df_plot['outcome_amount'].notna().sum()} valid numbers")
-        st.write("Sample converted values:")
-        st.write(df_plot['outcome_amount'].dropna().head(10).tolist())
+        # Check the filtered data
+        st.write(f"**After applying sidebar filters:**")
+        st.write(f"LAS cases in filtered data: {(display_df['source'] == 'LAS').sum()}")
+        st.write(f"Non-null outcome amounts in filtered data: {display_df['outcome_amount'].notna().sum()}")
         
-        df_plot = df_plot[df_plot["outcome_amount"].notna()]
-        
-        st.write(f"Final dataset size: {len(df_plot)} rows")
+        # Sample some actual LAS data
+        las_data = display_df[display_df['source'] == 'LAS']['outcome_amount'].head(20)
+        st.write("Sample LAS outcome amounts in filtered data:")
+        st.write(las_data.tolist())
         
         if exclude_zeros:
             df_plot = df_plot[df_plot["outcome_amount"] > 0]
