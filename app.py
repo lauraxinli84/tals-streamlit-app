@@ -2310,16 +2310,18 @@ st.sidebar.download_button(
 )
 
 # Download Excel button
-if st.button("Prepare Excel Download", key="excel_download_btn"):
-    with st.sidebar.spinner('Preparing Excel file...'):
+if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
+    with st.spinner('Preparing Excel file...'):
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             filtered_df.to_excel(writer, index=False)
         buffer.seek(0)
-        
-        st.sidebar.download_button(
-            label="Download Excel File",
-            data=buffer,
-            file_name="filtered_data.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    
+    # Move download button outside the spinner block to sidebar
+    st.sidebar.download_button(
+        label="Download Excel File",
+        data=buffer,
+        file_name="filtered_data.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="download_excel_btn"
+    )
