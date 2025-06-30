@@ -1627,19 +1627,26 @@ with tab5:
     ]
 
     try:
+        # Create a helper function for data cleaning 
+        def clean_categorical_data(series):
+            """Clean categorical data by removing nulls and numeric artifacts"""
+            clean = series.copy()
+            # Remove various null representations
+            clean = clean.replace(['', ' ', 'nan', 'NaN', 'null', 'NULL', 'None'], pd.NA)
+            clean = clean.astype(str).replace('nan', pd.NA)
+            clean = clean.dropna()
+            # Remove numeric artifacts (like 1, 2, 1.0, etc.)
+            clean = clean[~clean.str.match(r'^\d+\.?0*$', na=False)]
+            return clean
+
         if basic_plot_type == "Bar Chart":
             category_col = st.selectbox("Select Category", options=safe_categorical_columns)
-            # More aggressive cleaning for nulls/blanks
-            clean_series = display_df[category_col].copy()
-            clean_series = clean_series.replace(['', ' ', 'nan', 'NaN', 'null', 'NULL', 'None'], pd.NA)
-            clean_series = clean_series.astype(str).replace('nan', pd.NA)
-            clean_series = clean_series.dropna()
-            # Remove any remaining numeric-looking entries that aren't meaningful
-            clean_series = clean_series[~clean_series.str.match(r'^\d+\.?0*$', na=False)]
+            clean_series = clean_categorical_data(display_df[category_col])
             
             value_counts = clean_series.value_counts()
             if category_col != 'county_dispute':
                 value_counts = value_counts.head(10)
+                
             fig = px.bar(
                 x=value_counts.index,
                 y=value_counts.values,
@@ -1650,13 +1657,7 @@ with tab5:
 
         elif basic_plot_type == "Pie Chart":
             category_col = st.selectbox("Select Category", options=safe_categorical_columns)
-            # More aggressive cleaning for nulls/blanks
-            clean_series = display_df[category_col].copy()
-            clean_series = clean_series.replace(['', ' ', 'nan', 'NaN', 'null', 'NULL', 'None'], pd.NA)
-            clean_series = clean_series.astype(str).replace('nan', pd.NA)
-            clean_series = clean_series.dropna()
-            # Remove any remaining numeric-looking entries that aren't meaningful
-            clean_series = clean_series[~clean_series.str.match(r'^\d+\.?0*$', na=False)]
+            clean_series = clean_categorical_data(display_df[category_col])
             
             value_counts = clean_series.value_counts().head(10)
             fig = px.pie(
