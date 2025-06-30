@@ -913,7 +913,15 @@ selected_sources = st.sidebar.multiselect(
 
 # Apply the filters
 filtered_df = df.copy()
+# DEBUG: Check outcome amounts in original data
+st.write(f"DEBUG: Original data LAS outcome amounts: {df[df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
+st.write(f"DEBUG: Original data total LAS rows: {(df['source'] == 'LAS').sum()}")
+
 filtered_df = filtered_df[filtered_df['source'].isin(selected_sources)]
+
+# DEBUG: Check outcome amounts right after source filtering
+st.write(f"DEBUG: After source filtering, LAS outcome amounts: {filtered_df[filtered_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
+st.write(f"DEBUG: Total LAS rows after source filtering: {(filtered_df['source'] == 'LAS').sum()}")
 
 # Calculate date range based on actual data values - simply use normalized dates
 date_opened_min = pd.to_datetime(df['date_opened']).min().date()
@@ -984,10 +992,6 @@ date_mask = filtered_df['date_opened'].notna()
 date_df = filtered_df[date_mask].copy()
 unknown_df = filtered_df[~date_mask].copy()
 
-# DEBUG: Check before date processing
-st.write(f"DEBUG: date_df LAS outcome amounts: {date_df[date_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
-st.write(f"DEBUG: unknown_df LAS outcome amounts: {unknown_df[unknown_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
-
 # Apply date filter only to rows with valid dates
 if not date_df.empty:
     # Apply date range filter using the date_range from the sidebar
@@ -995,10 +999,6 @@ if not date_df.empty:
         (date_df['date_opened'].dt.date >= date_range[0]) &
         (date_df['date_opened'].dt.date <= date_range[1])
     ]
-
-    # DEBUG: Check each piece before concat
-    st.write(f"DEBUG: date_filtered LAS outcome amounts: {date_filtered[date_filtered['source'] == 'LAS']['outcome_amount'].notna().sum()}")
-    st.write(f"DEBUG: unknown_df LAS outcome amounts: {unknown_df[unknown_df['source'] == 'LAS']['outcome_amount'].notna().sum()}")
     
     # Combine filtered date rows with unknown date rows
     filtered_df = pd.concat([date_filtered, unknown_df])
