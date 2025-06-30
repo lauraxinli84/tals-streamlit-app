@@ -1628,7 +1628,9 @@ with tab5:
     try:
         if basic_plot_type == "Bar Chart":
             category_col = st.selectbox("Select Category", options=safe_categorical_columns)
-            value_counts = display_df[category_col].value_counts()
+            # Force to string and clean the data
+            clean_series = display_df[category_col].astype(str).replace('nan', pd.NA).dropna()
+            value_counts = clean_series.value_counts()
             if category_col != 'county_dispute':
                 value_counts = value_counts.head(10)
             fig = px.bar(
@@ -1641,7 +1643,9 @@ with tab5:
 
         elif basic_plot_type == "Pie Chart":
             category_col = st.selectbox("Select Category", options=safe_categorical_columns)
-            value_counts = display_df[category_col].value_counts().head(10)
+            # Force to string and clean the data  
+            clean_series = display_df[category_col].astype(str).replace('nan', pd.NA).dropna()
+            value_counts = clean_series.value_counts().head(10)
             fig = px.pie(
                 values=value_counts.values,
                 names=value_counts.index,
@@ -1768,7 +1772,10 @@ with tab5:
             ])
 
             try:
-                count_df = display_df.groupby(["legal_problem_code", category]).size().reset_index(name='count')
+                # Clean the category column before grouping
+                clean_df = display_df.copy()
+                clean_df[category] = clean_df[category].astype(str).replace('nan', pd.NA).dropna()
+                count_df = clean_df.groupby(["legal_problem_code", category]).size().reset_index(name='count')
                 fig = px.bar(
                     count_df,
                     x=category,
