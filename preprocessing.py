@@ -256,22 +256,19 @@ def predict_domestic_violence_risk(client_data):
 def predict_case_time(client_data):
     """
     Predicts case time based on client intake information.
-    
-    Parameters:
-    -----------
-    client_data : dict or pd.DataFrame
-        Dictionary or DataFrame containing client information
-    
-    Returns:
-    --------
-    dict
-        Dictionary containing predicted hours and resource allocation recommendations
+    Note: This version requires external model loading to avoid import conflicts.
+    """
+    return {
+        'predicted_hours': None,
+        'complexity_category': "Error",
+        'resource_allocation': "Use predict_case_time_with_model instead to avoid import conflicts"
+    }
+
+def predict_case_time_with_model(client_data, model):
+    """
+    Predicts case time with a pre-loaded model (avoids import issues).
     """
     try:
-        # Load the model from Google Drive
-        from app import load_case_time_model
-        model = load_case_time_model()
-        
         # Check if model loaded successfully
         if model is None:
             return {
@@ -291,7 +288,6 @@ def predict_case_time(client_data):
         
         return result
     except Exception as e:
-        print(f"Error predicting case time: {e}")
         return {
             'predicted_hours': None,
             'complexity_category': "Error",
