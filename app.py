@@ -2097,9 +2097,13 @@ with tab7:  # Case Time Prediction tab
         
         with col2:
             st.markdown("**Household Information**")
-            household_total = st.number_input("Total Household Size", min_value=1, max_value=15, value=2, key="ct_household")
             household_adults = st.number_input("Number of Adults", min_value=1, max_value=10, value=1, key="ct_adults") 
             household_children = st.number_input("Number of Children", min_value=0, max_value=10, value=1, key="ct_children")
+            
+            # Auto-calculate total household size
+            household_total = household_adults + household_children
+            st.info(f"**Total Household Size**: {household_total} (auto-calculated)")
+            
             living_arrangement = st.selectbox("Living Arrangement", 
                                            get_unique_options(df, 'living_arrangement'), key="ct_living")
         
@@ -2133,15 +2137,7 @@ with tab7:  # Case Time Prediction tab
                                             help="Primary legal issue - this significantly affects case duration",
                                             key="ct_legal_code")
         
-        # Add validation
-        validation_error = None
-        if household_adults + household_children != household_total:
-            validation_error = "⚠️ Total household size must equal adults + children"
-        
-        if validation_error:
-            st.error(validation_error)
-        
-        submitted = st.form_submit_button("Predict Case Time", disabled=(validation_error is not None))
+        submitted = st.form_submit_button("Predict Case Time", type="primary")
 
     if submitted:
         # Prepare client data dictionary with exactly the features used in training
