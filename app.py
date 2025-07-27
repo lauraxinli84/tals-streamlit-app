@@ -729,7 +729,19 @@ def handle_file_upload():
                 with st.spinner('Processing data...'):
                     # Read the uploaded file
                     df_new = pd.read_excel(uploaded_file, header=0)
-                    
+
+                    # Clean MALS case IDs by removing the "E" from the 3rd position
+                    # This prevents Google Sheets from interpreting them as scientific notation
+                    if upload_source == 'MALS':  # Only apply to MALS uploads
+                        if 'Matter/Case ID' in df_new.columns:
+                            df_new['Matter/Case ID'] = df_new['Matter/Case ID'].astype(str).apply(
+                                lambda x: x[:2] + x[3:] if len(x) > 3 and x[2] == 'E' else x
+                            )
+                        elif 'Case # ID' in df_new.columns:
+                            df_new['Case # ID'] = df_new['Case # ID'].astype(str).apply(
+                                lambda x: x[:2] + x[3:] if len(x) > 3 and x[2] == 'E' else x
+                            )
+
                     # === Header validation check ===
                     first_row_headers = df_new.columns.astype(str).str.strip()
                     known_headers = get_standard_mappings()[0].keys()
