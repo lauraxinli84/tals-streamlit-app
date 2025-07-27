@@ -46,6 +46,7 @@ def check_password():
     
         if username in valid_users and hash_password(password) == valid_users[username]:
             st.session_state["password_correct"] = True
+            st.session_state["current_username"] = username
             del st.session_state["password"]  # Don't store the password
             del st.session_state["username"]  # Don't store the username
         else:
@@ -699,6 +700,148 @@ def save_to_google_drive(combined_df):
         st.error(f"Error saving to Google Drive: {str(e)}")
         return False
 
+# create back up audit log
+def create_backup_and_audit_log(username, upload_info):
+    """
+    Create a backup of current data and log the upload activity
+    """
+    try:
+        creds_dict = get_google_credentials()
+        if creds_dict is None:
+            return False
+        
+        scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+        credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        gc = gspread.authorize(credentials)
+        
+        # Main data file ID
+        MAIN_FILE_ID = "1oZXp2g1joIMmiHsuFz25mBvPxbhnB-tattInxKTjG6c"
+        
+        # Backup file ID 
+        BACKUP_FILE_ID = "1hJYhGULLWipg66ZTt93zlXvTLrdnXnM5KZ0-PbmHlD0"
+        
+        # Audit log file ID 
+        AUDIT_LOG_FILE_ID = "1AzE8uz5hUzKoFE97xKzuSdIF9yDN4Y8kG54o5AenaxU"
+        
+        # 1. Create backup of current data
+        main_file = gc.open_by_key(MAIN_FILE_ID)
+        main_data = main_file.get_worksheet(0).get_all_values()
+        
+        backup_file = gc.open_by_key(BACKUP_FILE_ID)
+        backup_worksheet = backup_file.get_worksheet(0)
+        backup_worksheet.clear()
+        backup_worksheet.update(main_data)
+        
+        # 2. Update audit log
+        audit_file = gc.open_by_key(AUDIT_LOG_FILE_ID)
+        audit_worksheet = audit_file.get_worksheet(0)
+        
+        # Check if audit log has headers
+        try:
+            existing_data = audit_worksheet.get_all_values()
+            if not existing_data or existing_data[0] != ['Timestamp', 'Username', 'Action', 'Records_Added', 'Organization', 'Total_Records_After']:
+                # Add headers if they don't exist
+                audit_worksheet.clear()
+                audit_worksheet.append_row(['Timestamp', 'Username', 'Action', 'Records_Added', 'Organization', 'Total_Records_After'])
+        except:
+            # Create headers if sheet is empty
+            audit_worksheet.append_row(['Timestamp', 'Username', 'Action', 'Records_Added', 'Organization', 'Total_Records_After'])
+        
+        # Add new audit entry
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        audit_row = [
+            timestamp,
+            username,
+            "Data Upload", 
+            upload_info['records_added'],
+            upload_info['organization'],
+            upload_info['total_records_after']
+        ]
+        
+        audit_worksheet.append_row(audit_row)
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error creating backup/audit log: {str(e)}")
+        return False
+
+def restore_from_backup():
+    """
+    Restore data from the most recent backup
+    """
+    try:
+        creds_dict = get_google_credentials()
+        if creds_dict is None:
+            return False
+        
+        scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+        credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        gc = gspread.authorize(credentials)
+        
+        MAIN_FILE_ID = "1oZXp2g1joIMmiHsuFz25mBvPxbhnB-tattInxKTjG6c"
+        BACKUP_FILE_ID = "1hJYhGULLWipg66ZTt93zlXvTLrdnXnM5KZ0-PbmHlD0"
+        
+        # Get backup data
+        backup_file = gc.open_by_key(BACKUP_FILE_ID)
+        backup_data = backup_file.get_worksheet(0).get_all_values()
+        
+        if not backup_data:
+            st.error("No backup data found")
+            return False
+        
+        # Restore to main file
+        main_file = gc.open_by_key(MAIN_FILE_ID)
+        main_worksheet = main_file.get_worksheet(0)
+        main_worksheet.clear()
+        main_worksheet.update(backup_data)
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error restoring from backup: {str(e)}")
+        return False
+
+def load_audit_log():
+    """
+    Load and display audit log
+    """
+    try:
+        creds_dict = get_google_credentials()
+        if creds_dict is None:
+            return None
+        
+        scopes = ['https://www.googleapis.com/auth/drive']
+        credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        gc = gspread.authorize(credentials)
+        
+        AUDIT_LOG_FILE_ID = "1AzE8uz5hUzKoFE97xKzuSdIF9yDN4Y8kG54o5AenaxU"
+        
+        audit_file = gc.open_by_key(AUDIT_LOG_FILE_ID)
+        audit_data = audit_file.get_worksheet(0).get_all_values()
+        
+        if len(audit_data) <= 1:  # Only headers or empty
+            return pd.DataFrame(columns=['Timestamp', 'Username', 'Action', 'Records_Added', 'Organization', 'Total_Records_After'])
+        
+        headers = audit_data[0]
+        rows = audit_data[1:]
+        
+        df = pd.DataFrame(rows, columns=headers)
+        df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+        df = df.sort_values('Timestamp', ascending=False)  # Most recent first
+        
+        return df
+        
+    except Exception as e:
+        st.error(f"Error loading audit log: {str(e)}")
+        return None
+
+def get_current_username():
+    """Get the current logged-in username"""
+    return st.session_state.get('current_username', 'Unknown User')
+
 # Updated handle_file_upload function
 def handle_file_upload():
     # Display different content based on upload stage
@@ -801,30 +944,47 @@ def handle_file_upload():
             
             # Confirmation
             if st.button("Confirm and Save", type="primary", key="confirm_save_btn"):
-                with st.spinner('Saving data to Google Drive...'):
+                # Get current username
+                current_user = get_current_username()
+                
+                with st.spinner('Creating backup and saving data...'):
                     # Combine datasets
                     combined_df = pd.concat([existing_df, df_processed], ignore_index=True)
-                    del existing_df, df_processed
-
-                    # Make sure date columns are normalized before saving
-                    date_columns = ['date_opened', 'date_closed']
-                    for col in date_columns:
-                        if col in combined_df.columns:
-                            combined_df[col] = pd.to_datetime(combined_df[col], errors='coerce').dt.normalize()
-
-                    # Save combined data to Google Drive
-                    if save_to_google_drive(combined_df):
-                        # Clear the cache
-                        del combined_df
-                        st.cache_data.clear()
-                        
-                        # Update session state
-                        st.session_state.upload_success = True
-                        st.session_state.upload_stage = 'initial'
-                        st.session_state.processed_data = None
-                        st.rerun()
+                    
+                    # Prepare upload info for audit
+                    upload_info = {
+                        'records_added': len(df_processed),
+                        'organization': df_processed['source'].iloc[0] if len(df_processed) > 0 else 'Unknown',
+                        'total_records_after': len(combined_df)
+                    }
+                    
+                    # Create backup and audit entry BEFORE saving new data
+                    backup_success = create_backup_and_audit_log(current_user, upload_info)
+                    
+                    if not backup_success:
+                        st.error("Failed to create backup. Upload cancelled for data safety.")
                     else:
-                        st.error("Failed to save data to Google Drive. Please try again.")
+                        del existing_df, df_processed
+            
+                        # Make sure date columns are normalized before saving
+                        date_columns = ['date_opened', 'date_closed']
+                        for col in date_columns:
+                            if col in combined_df.columns:
+                                combined_df[col] = pd.to_datetime(combined_df[col], errors='coerce').dt.normalize()
+            
+                        # Save combined data to Google Drive
+                        if save_to_google_drive(combined_df):
+                            # Clear the cache
+                            del combined_df
+                            st.cache_data.clear()
+                            
+                            # Update session state
+                            st.session_state.upload_success = True
+                            st.session_state.upload_stage = 'initial'
+                            st.session_state.processed_data = None
+                            st.rerun()
+                        else:
+                            st.error("Failed to save data to Google Drive. Please try again.")
             
             if st.button("Cancel", key="cancel_upload_btn"):
                 st.session_state.upload_stage = 'initial'
@@ -2303,6 +2463,48 @@ with tab7:  # Case Time Prediction tab
                 """)
 
 with tab8:
+    # Add audit trail and backup management at the top
+    st.header("Data Management & Upload")
+    
+    # Create columns for the management tools
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📊 Upload History")
+        if st.button("View Audit Log", key="view_audit_btn"):
+            audit_df = load_audit_log()
+            if audit_df is not None and len(audit_df) > 0:
+                st.dataframe(
+                    audit_df,
+                    column_config={
+                        "Timestamp": st.column_config.DatetimeColumn("Upload Time"),
+                        "Username": "User",
+                        "Records_Added": st.column_config.NumberColumn("New Records"),
+                        "Total_Records_After": st.column_config.NumberColumn("Total After Upload")
+                    },
+                    hide_index=True
+                )
+            else:
+                st.info("No upload history found.")
+    
+    with col2:
+        st.subheader("🔄 Data Recovery")
+        st.warning("⚠️ This will restore the dataset to the state before the most recent upload.")
+        if st.button("Restore from Backup", key="restore_backup_btn", type="secondary"):
+            if st.session_state.get('confirm_restore', False):
+                with st.spinner('Restoring from backup...'):
+                    if restore_from_backup():
+                        st.cache_data.clear()  # Clear cache to reload restored data
+                        st.success("✅ Data successfully restored from backup!")
+                        st.session_state.confirm_restore = False
+                    else:
+                        st.error("❌ Failed to restore from backup.")
+            else:
+                st.session_state.confirm_restore = True
+                st.warning("Click 'Restore from Backup' again to confirm. This action cannot be undone.")
+    
+    st.markdown("---")
+    
     handle_file_upload()
 
 # Add download buttons for filtered data
