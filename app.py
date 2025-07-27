@@ -749,7 +749,9 @@ def create_backup_and_audit_log(username, upload_info):
         
         # Add new audit entry
         import datetime
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        import pytz
+        central = pytz.timezone('US/Central')
+        timestamp = datetime.datetime.now(central).strftime("%Y-%m-%d %H:%M:%S CT")
         
         audit_row = [
             timestamp,
