@@ -770,42 +770,6 @@ def create_backup_and_audit_log(username, upload_info):
         st.error(f"Error creating backup/audit log: {str(e)}")
         return False
 
-def restore_from_backup():
-    """
-    Restore data from the most recent backup
-    """
-    try:
-        creds_dict = get_google_credentials()
-        if creds_dict is None:
-            return False
-        
-        scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
-        credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        gc = gspread.authorize(credentials)
-        
-        MAIN_FILE_ID = "1oZXp2g1joIMmiHsuFz25mBvPxbhnB-tattInxKTjG6c"
-        BACKUP_FILE_ID = "1hJYhGULLWipg66ZTt93zlXvTLrdnXnM5KZ0-PbmHlD0"
-        
-        # Get backup data
-        backup_file = gc.open_by_key(BACKUP_FILE_ID)
-        backup_data = backup_file.get_worksheet(0).get_all_values()
-        
-        if not backup_data:
-            st.error("No backup data found")
-            return False
-        
-        # Restore to main file
-        main_file = gc.open_by_key(MAIN_FILE_ID)
-        main_worksheet = main_file.get_worksheet(0)
-        main_worksheet.clear()
-        main_worksheet.update(backup_data)
-        
-        return True
-        
-    except Exception as e:
-        st.error(f"Error restoring from backup: {str(e)}")
-        return False
-
 def load_audit_log():
     """
     Load and display audit log
@@ -839,6 +803,110 @@ def load_audit_log():
     except Exception as e:
         st.error(f"Error loading audit log: {str(e)}")
         return None
+
+def process_single_file(uploaded_file, source):
+    """
+    Process a single uploaded file with standardization and validation
+    Returns: (processed_df, success, error_message)
+    """
+    try:
+        # Read the uploaded file
+        df_new = pd.read_excel(uploaded_file, header=0)
+
+        # Clean MALS case IDs by removing the "E" from the 3rd position
+        if source == 'MALS':
+            if 'Matter/Case ID' in df_new.columns:
+                df_new['Matter/Case ID'] = df_new['Matter/Case ID'].astype(str).apply(
+                    lambda x: x[:2] + x[3:] if len(x) > 3 and x[2] == 'E' else x
+                )
+            elif 'Case # ID' in df_new.columns:
+                df_new['Case # ID'] = df_new['Case # ID'].astype(str).apply(
+                    lambda x: x[:2] + x[3:] if len(x) > 3 and x[2] == 'E' else x
+                )
+
+        # Header validation check
+        first_row_headers = df_new.columns.astype(str).str.strip()
+        known_headers = get_standard_mappings()[0].keys()
+
+        has_title_row = (
+            (len(first_row_headers) <= 3 and any(first_row_headers.str.len() > 30)) or
+            (first_row_headers.isin(known_headers).sum() < 3)
+        )
+
+        no_valid_columns = first_row_headers.isin(known_headers).sum() == 0
+
+        if has_title_row or no_valid_columns:
+            return None, False, "File appears to have header issues or missing column names"
+
+        # Process data using existing standardization
+        df_processed = standardize_new_data(df_new, source)
+        
+        return df_processed, True, None
+        
+    except Exception as e:
+        return None, False, str(e)
+
+def rebuild_dataset_from_files(uploaded_files, file_sources):
+    """
+    Rebuild the entire dataset from uploaded raw files
+    """
+    try:
+        current_user = get_current_username()
+        
+        with st.spinner('Processing files and rebuilding dataset...'):
+            combined_data = []
+            processing_log = []
+            
+            # Process each uploaded file using shared logic
+            for file in uploaded_files:
+                source = file_sources[file.name]
+                df_processed, success, error_msg = process_single_file(file, source)
+                
+                if success:
+                    combined_data.append(df_processed)
+                    processing_log.append(f"✅ {file.name}: {len(df_processed)} records processed as {source}")
+                else:
+                    processing_log.append(f"❌ {file.name}: Error - {error_msg}")
+                    st.error(f"Error processing {file.name}: {error_msg}")
+            
+            if combined_data:
+                # Combine all processed data
+                final_dataset = pd.concat(combined_data, ignore_index=True)
+                
+                # Create backup of current data first
+                backup_info = {
+                    'records_added': len(final_dataset),
+                    'organization': 'REBUILD_OPERATION',
+                    'total_records_after': len(final_dataset)
+                }
+                
+                backup_success = create_backup_and_audit_log(current_user, backup_info)
+                
+                if backup_success:
+                    # Save the new dataset
+                    if save_to_google_drive(final_dataset):
+                        st.cache_data.clear()
+                        st.success("✅ Dataset successfully rebuilt!")
+                        
+                        # Show processing summary
+                        st.subheader("Processing Summary")
+                        for log_entry in processing_log:
+                            st.write(log_entry)
+                        
+                        st.metric("Total Records in New Dataset", len(final_dataset))
+                        
+                        # Reset confirmation state
+                        st.session_state.confirm_rebuild = False
+                        
+                    else:
+                        st.error("Failed to save rebuilt dataset to Google Drive")
+                else:
+                    st.error("Failed to create backup before rebuild")
+            else:
+                st.error("No files were successfully processed")
+                
+    except Exception as e:
+        st.error(f"Error during dataset rebuild: {str(e)}")
 
 def get_current_username():
     """Get the current logged-in username"""
@@ -876,46 +944,20 @@ def handle_file_upload():
         if uploaded_file is not None:
             try:
                 with st.spinner('Processing data...'):
-                    # Read the uploaded file
-                    df_new = pd.read_excel(uploaded_file, header=0)
-
-                    # Clean MALS case IDs by removing the "E" from the 3rd position
-                    # This prevents Google Sheets from interpreting them as scientific notation
-                    if upload_source == 'MALS':  # Only apply to MALS uploads
-                        if 'Matter/Case ID' in df_new.columns:
-                            df_new['Matter/Case ID'] = df_new['Matter/Case ID'].astype(str).apply(
-                                lambda x: x[:2] + x[3:] if len(x) > 3 and x[2] == 'E' else x
+                    # Use the shared processing function
+                    df_processed, success, error_msg = process_single_file(uploaded_file, upload_source)
+                    
+                    if not success:
+                        if "header" in error_msg.lower():
+                            st.error(
+                                "⚠️ It looks like the uploaded file either includes a header or is missing row with column names.\n\n"
+                                "Please make sure:\n"
+                                "- The first row contains column names (like 'Client ID', 'Date Opened')\n"
+                                "- Any report titles or labels above the header row are removed"
                             )
-                        elif 'Case # ID' in df_new.columns:
-                            df_new['Case # ID'] = df_new['Case # ID'].astype(str).apply(
-                                lambda x: x[:2] + x[3:] if len(x) > 3 and x[2] == 'E' else x
-                            )
-
-                    # === Header validation check ===
-                    first_row_headers = df_new.columns.astype(str).str.strip()
-                    known_headers = get_standard_mappings()[0].keys()
-
-                    # Heuristic 1: Possible title row
-                    has_title_row = (
-                        (len(first_row_headers) <= 3 and any(first_row_headers.str.len() > 30)) or
-                        (first_row_headers.isin(known_headers).sum() < 3)
-                    )
-
-                    # Heuristic 2: No recognizable column names
-                    no_valid_columns = first_row_headers.isin(known_headers).sum() == 0
-
-                    if has_title_row or no_valid_columns:
-                        st.error(
-                            "⚠️ It looks like the uploaded file either includes a header or is missing row with column names.\n\n"
-                            "Please make sure:\n"
-                            "- The first row contains column names (like 'Client ID', 'Date Opened')\n"
-                            "- Any report titles or labels above the header row are removed"
-                        )
+                        else:
+                            st.error(f"⚠️ {error_msg}")
                         return
-                    # === End check ===
-
-                    # Process data
-                    df_processed = standardize_new_data(df_new, upload_source)
                     
                     # Store in session state
                     st.session_state.processed_data = df_processed
@@ -2576,20 +2618,46 @@ with tab8:
                 st.info("No upload history found.")
     
     with col2:
-        st.subheader("🔄 Data Recovery")
-        st.warning("⚠️ This will restore the dataset to the state before the most recent upload.")
-        if st.button("Restore from Backup", key="restore_backup_btn", type="secondary"):
-            if st.session_state.get('confirm_restore', False):
-                with st.spinner('Restoring from backup...'):
-                    if restore_from_backup():
-                        st.cache_data.clear()  # Clear cache to reload restored data
-                        st.success("✅ Data successfully restored from backup!")
-                        st.session_state.confirm_restore = False
-                    else:
-                        st.error("❌ Failed to restore from backup.")
-            else:
-                st.session_state.confirm_restore = True
-                st.warning("Click 'Restore from Backup' again to confirm. This action cannot be undone.")
+        st.subheader("🔄 Rebuild Dataset")
+        st.warning("⚠️ This will completely replace the current dataset with newly uploaded files.")
+        
+        # File uploader that accepts multiple files
+        uploaded_files = st.file_uploader(
+            "Upload Raw Data Files (Excel format)",
+            type="xlsx",
+            accept_multiple_files=True,
+            help="Upload all raw data files (e.g., WTLS 2023, WTLS 2024, LAS 2023, etc.)"
+        )
+        
+        if uploaded_files:
+            st.info(f"📁 {len(uploaded_files)} files selected")
+            
+            # Show file preview
+            with st.expander("Preview Selected Files"):
+                for file in uploaded_files:
+                    st.write(f"• {file.name}")
+            
+            # Source assignment for each file
+            st.subheader("Assign Organization Source")
+            file_sources = {}
+            
+            for i, file in enumerate(uploaded_files):
+                col_a, col_b = st.columns([3, 1])
+                with col_a:
+                    st.write(f"**{file.name}**")
+                with col_b:
+                    file_sources[file.name] = st.selectbox(
+                        "Source",
+                        options=["LAET", "LAS", "WTLS", "MALS"],
+                        key=f"source_{i}"
+                    )
+            
+            if st.button("🚨 REBUILD DATASET", type="primary", key="rebuild_dataset_btn"):
+                if st.session_state.get('confirm_rebuild', False):
+                    rebuild_dataset_from_files(uploaded_files, file_sources)
+                else:
+                    st.session_state.confirm_rebuild = True
+                    st.error("⚠️ Click 'REBUILD DATASET' again to confirm. This will COMPLETELY REPLACE the current dataset!")
     
     st.markdown("---")
     
@@ -2623,6 +2691,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
