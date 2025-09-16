@@ -1592,6 +1592,7 @@ with tab4:
             labels={'age_group': 'Age Group', 'count': 'Number of Cases', 'legal_problem_code': 'Legal Problem Code'})
     fig.update_layout(
         showlegend=True,
+        height=700,
         legend=dict(
             title="Legal Problem Code",
             orientation="h",
@@ -1620,6 +1621,7 @@ with tab4:
 
     fig_gender.update_layout(
         showlegend=True,
+        height=700,
         legend=dict(
             title="Legal Problem Code",
             orientation="h",
@@ -2582,5 +2584,6 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
