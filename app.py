@@ -1300,6 +1300,9 @@ with tab3:
     # County heat map
     st.subheader("Geographic Distribution")
 
+    # Tennessee counties filter
+    tn_only = st.checkbox("Show Tennessee counties only", value=False, key="tab3_tn_filter")
+
     # Volume selection radio button
     view_option = st.radio("Select View", [
         "High Volume (1000+ cases)",
@@ -1309,6 +1312,22 @@ with tab3:
 
     # Calculate county counts from filtered data
     county_counts = display_df['county_dispute'].value_counts()
+    
+    # Filter to Tennessee counties if requested
+    if tn_only:
+        tn_counties = {
+            'Anderson', 'Bedford', 'Benton', 'Bledsoe', 'Blount', 'Bradley', 'Campbell', 'Cannon', 'Carroll', 
+            'Carter', 'Cheatham', 'Chester', 'Claiborne', 'Clay', 'Cocke', 'Coffee', 'Crockett', 'Cumberland', 
+            'Davidson', 'Decatur', 'DeKalb', 'Dickson', 'Dyer', 'Fayette', 'Fentress', 'Franklin', 'Gibson', 
+            'Giles', 'Grainger', 'Greene', 'Grundy', 'Hamblen', 'Hamilton', 'Hancock', 'Hardeman', 'Hardin', 
+            'Hawkins', 'Haywood', 'Henderson', 'Henry', 'Hickman', 'Houston', 'Humphreys', 'Jackson', 'Jefferson', 
+            'Johnson', 'Knox', 'Lake', 'Lauderdale', 'Lawrence', 'Lewis', 'Lincoln', 'Loudon', 'Macon', 'Madison', 
+            'Marion', 'Marshall', 'Maury', 'McMinn', 'McNairy', 'Meigs', 'Monroe', 'Montgomery', 'Moore', 'Morgan', 
+            'Obion', 'Overton', 'Perry', 'Pickett', 'Polk', 'Putnam', 'Rhea', 'Roane', 'Robertson', 'Rutherford', 
+            'Scott', 'Sequatchie', 'Sevier', 'Shelby', 'Smith', 'Stewart', 'Sullivan', 'Sumner', 'Tipton', 'Trousdale', 
+            'Unicoi', 'Union', 'Van Buren', 'Warren', 'Washington', 'Wayne', 'Weakley', 'White', 'Williamson', 'Wilson'
+        }
+        county_counts = county_counts[county_counts.index.isin(tn_counties)]
 
     # Filter counties based on volume selection
     if view_option == "High Volume (1000+ cases)":
@@ -1519,7 +1538,7 @@ with tab4:
     # Get top problems by percentage for each area
     top_problems_by_area = (area_problems.sort_values(['area_type', 'count'], ascending=[True, False])
                         .groupby('area_type')
-                        .head(10))
+                        .head(20))
     
     fig = px.bar(top_problems_by_area, 
             x='count', 
@@ -1873,8 +1892,27 @@ with tab5:
         elif basic_plot_type == "Box Plot":
             numeric_col = st.selectbox("Select Numeric Value (Y-axis)", options=safe_numeric_columns)
             category_col = st.selectbox("Select Category (X-axis)", options=safe_categorical_columns)
+            # Tennessee counties filter for box plots with county data
+            if category_col in ['county_dispute', 'county_residence']:
+                tn_only_box = st.checkbox("Show Tennessee counties only", value=False, key="tab5_tn_filter_box")
+            plot_df = display_df.copy()
+            if category_col in ['county_dispute', 'county_residence'] and 'tn_only_box' in locals() and tn_only_box:
+                tn_counties = {
+                    'Anderson', 'Bedford', 'Benton', 'Bledsoe', 'Blount', 'Bradley', 'Campbell', 'Cannon', 'Carroll', 
+                    'Carter', 'Cheatham', 'Chester', 'Claiborne', 'Clay', 'Cocke', 'Coffee', 'Crockett', 'Cumberland', 
+                    'Davidson', 'Decatur', 'DeKalb', 'Dickson', 'Dyer', 'Fayette', 'Fentress', 'Franklin', 'Gibson', 
+                    'Giles', 'Grainger', 'Greene', 'Grundy', 'Hamblen', 'Hamilton', 'Hancock', 'Hardeman', 'Hardin', 
+                    'Hawkins', 'Haywood', 'Henderson', 'Henry', 'Hickman', 'Houston', 'Humphreys', 'Jackson', 'Jefferson', 
+                    'Johnson', 'Knox', 'Lake', 'Lauderdale', 'Lawrence', 'Lewis', 'Lincoln', 'Loudon', 'Macon', 'Madison', 
+                    'Marion', 'Marshall', 'Maury', 'McMinn', 'McNairy', 'Meigs', 'Monroe', 'Montgomery', 'Moore', 'Morgan', 
+                    'Obion', 'Overton', 'Perry', 'Pickett', 'Polk', 'Putnam', 'Rhea', 'Roane', 'Robertson', 'Rutherford', 
+                    'Scott', 'Sequatchie', 'Sevier', 'Shelby', 'Smith', 'Stewart', 'Sullivan', 'Sumner', 'Tipton', 'Trousdale', 
+                    'Unicoi', 'Union', 'Van Buren', 'Warren', 'Washington', 'Wayne', 'Weakley', 'White', 'Williamson', 'Wilson'
+                }
+                plot_df = plot_df[plot_df[category_col].isin(tn_counties)]
+            
             fig = px.box(
-                display_df,
+                plot_df,
                 x=category_col,
                 y=numeric_col,
                 title=f"{numeric_col.replace('_', ' ').title()} by {category_col.replace('_', ' ').title()}",
@@ -2537,3 +2575,4 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
