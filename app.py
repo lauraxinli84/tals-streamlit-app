@@ -1972,11 +1972,12 @@ with tab5:
                     'Black or AA': 'Black',
                     'Multi-Racial': 'Multiracial', 
                     'American Indian or Alaska Native': 'Native American',
+                    'Other/Unknown': 'Other',
                     'Other Ethnic Group': 'Other',
                     'Organization/Group': 'Other'
                 }
                 clean = clean.replace(race_mapping)
-                valid_races = ['White', 'Black', 'Hispanic', 'Multiracial', 'Asian/Pacific Islander', 'Native American', 'Other/Unknown', 'Other']
+                valid_races = ['White', 'Black', 'Hispanic', 'Multiracial', 'Asian/Pacific Islander', 'Native American', 'Other']
                 clean = clean.apply(lambda x: x if x in valid_races else 'Other')
                 
             elif column_name == 'gender':
@@ -2768,6 +2769,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
