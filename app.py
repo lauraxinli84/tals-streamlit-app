@@ -1963,7 +1963,9 @@ with tab5:
             clean = series.astype(str)
             clean = clean.replace(['nan', '<NA>', 'None', ''], 'Other')
             clean = clean.dropna()
-            clean = clean.replace(clean[clean.str.match(r'^\d+\.?0*$', na=False)], 'Other')
+            # Remove numeric artifacts (like 1, 2, 1.0, etc.)
+            numeric_mask = clean.str.match(r'^\d+\.?0*$', na=False)
+            clean.loc[numeric_mask] = 'Other'
             
             if column_name == 'race':
                 race_mapping = {
@@ -2766,6 +2768,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
