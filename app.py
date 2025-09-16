@@ -1290,11 +1290,17 @@ with tab3:
     st.subheader("Top Legal Problems")
     
     # Get problem counts
-    problem_counts = display_df['legal_problem_code'].value_counts().head(10)
+    problem_counts = display_df['legal_problem_code'].value_counts().head(20)
     
     fig = px.bar(x=problem_counts.index, y=problem_counts.values,
-            title=f"Top 10 Legal Problems {'(Excluding Food Stamps)' if exclude_foodstamps else '(Including Food Stamps)'}",
+            title=f"Top 20 Legal Problems {'(Excluding Food Stamps)' if exclude_foodstamps else '(Including Food Stamps)'}",
             labels={'x': 'Legal Problem Code', 'y': 'Number of Cases'})
+    fig.update_layout(
+        xaxis_title="Legal Problem Code",
+        yaxis_title="Number of Cases",
+        height=800
+    )
+    fig.update_xaxes(tickangle=45)
     st.plotly_chart(fig, use_container_width=True)
 
     # County heat map
@@ -1545,14 +1551,15 @@ with tab4:
             y='legal_problem_code',
             color='area_type',
             barmode='group',
-            title='Top 10 Legal Problems by Urban/Rural Areas',
+            title='Top 20 Legal Problems by Urban/Rural Areas',
             labels={'count': 'Number of Cases', 
                'legal_problem_code': 'Legal Problem Code',
                'area_type': 'Area Type'})
     fig.update_layout(
-    showlegend=True,
-    xaxis_title="Number of Cases",
-    yaxis_title="Legal Problem",
+        showlegend=True,
+        xaxis_title="Number of Cases",
+        yaxis_title="Legal Problem",
+        height=800
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -2575,4 +2582,5 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
