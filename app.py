@@ -1243,6 +1243,53 @@ if not closed_date_df.empty:
 if selected_counties:
     filtered_df = filtered_df[filtered_df['county_dispute'].isin(selected_counties)]
 
+# Data Cleaning Function for cleaner display
+def clean_demographics_for_viz(df):
+    """Clean demographic data specifically for visualizations"""
+    df_clean = df.copy()
+    
+    # Fix age = 0 (treat as null/missing)
+    df_clean['age_intake_clean'] = df_clean['age_intake'].replace(0, pd.NA)
+    
+    # Standardize race categories
+    race_mapping = {
+        'White': 'White',
+        'Black': 'Black', 
+        'Black or AA': 'Black',
+        'Hispanic': 'Hispanic',
+        'Multiracial': 'Multiracial',
+        'Multi-Racial': 'Multiracial', 
+        'Asian/Pacific Islander': 'Asian/Pacific Islander',
+        'Native American': 'Native American',
+        'American Indian or Alaska Native': 'Native American',
+        'Other/Unknown': 'Other',
+        'Other Ethnic Group': 'Other',
+        'Organization/Group': 'Other'
+    }
+    
+    df_clean['race_clean'] = df_clean['race'].map(race_mapping).fillna('Other')
+    
+    # Standardize gender categories  
+    gender_mapping = {
+        'Female': 'Female',
+        'Male': 'Male', 
+        'Transgender Female to Male': 'Transgender',
+        'Transgender Male to Female': 'Transgender',
+        'Trans man': 'Transgender',
+        'Trans woman': 'Transgender',
+        'Non-binary': 'Non-binary',
+        'Non-Binary': 'Non-binary',
+        "Don't Know": 'Other',
+        'Other': 'Other',
+        'G': 'Other',
+        '7': 'Other',
+        'nan': 'Other'
+    }
+    
+    df_clean['gender_clean'] = df_clean['gender'].map(gender_mapping).fillna('Other')
+    
+    return df_clean
+
 # Main content area with tabs
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["Overview", "Demographic Analysis", "Case Analysis", "Trends & Patterns", "Custom Visualization", "DV Risk Predictor", "Case Time Predictor", "Data Upload"])
 
@@ -1279,13 +1326,16 @@ with tab1:
 
 with tab2:
     st.header("Demographic Analysis")
-    
+
+    # Clean the data for visualization
+    viz_df = clean_demographics_for_viz(filtered_df)
+
     col1, col2 = st.columns(2)
     
     with col1:
         # Age distribution
         st.subheader("Age Distribution")
-        unique_age_dist = filtered_df.groupby('client_id')['age_intake'].first()
+        unique_age_dist = viz_df.groupby('client_id')['age_intake_clean'].first().dropna()
         fig = px.histogram(unique_age_dist, 
                   title="Age Distribution at Intake (Unique Clients)",
                   labels={'age_intake': 'Age at Intake', 'count': 'Number of Clients'})
@@ -1293,7 +1343,7 @@ with tab2:
         
         # Gender distribution
         st.subheader("Gender Distribution")
-        gender_counts = filtered_df.groupby('client_id')['gender'].first().value_counts()
+        gender_counts = viz_df.groupby('client_id')['gender_clean'].first().value_counts()
         fig = px.pie(values=gender_counts.values, names=gender_counts.index,
             title="Gender Distribution (Unique Clients)",
             labels={'names': 'Gender', 'values': 'Number of Clients'})
@@ -1302,7 +1352,7 @@ with tab2:
     with col2:
         # Race distribution
         st.subheader("Race Distribution")
-        race_counts = filtered_df.groupby('client_id')['race'].first().value_counts()
+        race_counts = viz_df.groupby('client_id')['race_clean'].first().value_counts()
         fig = px.bar(x=race_counts.index, y=race_counts.values,
             title="Race Distribution (Unique Clients)",
             labels={'x': 'Race', 'y': 'Number of Clients'})
@@ -1908,19 +1958,44 @@ with tab5:
 
     try:
         # Create a helper function for data cleaning 
-        def clean_categorical_data(series):
+        def clean_categorical_data(series, column_name=None):
             """Clean categorical data by removing nulls and numeric artifacts"""
             clean = series.astype(str)
-            # Remove all null representations and numeric artifacts in one step
-            clean = clean.replace(['nan', '<NA>', 'None', ''], pd.NA)
+            clean = clean.replace(['nan', '<NA>', 'None', ''], 'Other')
             clean = clean.dropna()
-            # Remove numeric artifacts (like 1, 2, 1.0, etc.)
-            clean = clean[~clean.str.match(r'^\d+\.?0*$', na=False)]
+            clean = clean.replace(clean[clean.str.match(r'^\d+\.?0*$', na=False)], 'Other')
+            
+            if column_name == 'race':
+                race_mapping = {
+                    'Black or AA': 'Black',
+                    'Multi-Racial': 'Multiracial', 
+                    'American Indian or Alaska Native': 'Native American',
+                    'Other Ethnic Group': 'Other',
+                    'Organization/Group': 'Other'
+                }
+                clean = clean.replace(race_mapping)
+                valid_races = ['White', 'Black', 'Hispanic', 'Multiracial', 'Asian/Pacific Islander', 'Native American', 'Other/Unknown', 'Other']
+                clean = clean.apply(lambda x: x if x in valid_races else 'Other')
+                
+            elif column_name == 'gender':
+                gender_mapping = {
+                    'Transgender Female to Male': 'Transgender',
+                    'Transgender Male to Female': 'Transgender',
+                    'Trans man': 'Transgender',
+                    'Trans woman': 'Transgender',
+                    'Non-Binary': 'Non-binary',
+                    "Don't Know": 'Other',
+                    'G': 'Other'
+                }
+                clean = clean.replace(gender_mapping)
+                valid_genders = ['Female', 'Male', 'Transgender', 'Non-binary', 'Other']
+                clean = clean.apply(lambda x: x if x in valid_genders else 'Other')
+            
             return clean
 
         if basic_plot_type == "Bar Chart":
             category_col = st.selectbox("Select Category", options=safe_categorical_columns)
-            clean_series = clean_categorical_data(display_df[category_col])
+            clean_series = clean_categorical_data(display_df[category_col], category_col)
             
             value_counts = clean_series.value_counts()
             if category_col != 'county_dispute':
@@ -2691,6 +2766,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
