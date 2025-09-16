@@ -2547,7 +2547,7 @@ with tab8:
                 )
             else:
                 st.info("No upload history found.")
-        return  # Exit the tab early
+        st.stop()  # Exit the tab early
     
     # Admin-only content 
     st.header("Data Management & Upload")
@@ -2623,6 +2623,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
