@@ -1787,6 +1787,12 @@ with tab4:
     display_cooccurrence_analysis(display_df)
 
 with tab5:
+    # Global Tennessee counties toggle
+    tn_counties_only = st.checkbox(
+        "Show Tennessee counties only", 
+        value=False, 
+        key="tab5_tn_counties_global"
+    )
 
     # Global Food Stamps toggle
     exclude_foodstamps = st.checkbox(
@@ -1802,6 +1808,25 @@ with tab5:
             (display_df['legal_problem_code'].str.contains('73 Food Stamps', case=False, na=False)) &
             (display_df['close_reason'].isin(['Counsel and Advice', 'X1-Brief Service']))
         )]
+
+    # Apply Tennessee counties filter globally
+    if tn_counties_only:
+        tn_counties = {
+            'Anderson', 'Bedford', 'Benton', 'Bledsoe', 'Blount', 'Bradley', 'Campbell', 'Cannon', 'Carroll', 
+            'Carter', 'Cheatham', 'Chester', 'Claiborne', 'Clay', 'Cocke', 'Coffee', 'Crockett', 'Cumberland', 
+            'Davidson', 'Decatur', 'DeKalb', 'Dickson', 'Dyer', 'Fayette', 'Fentress', 'Franklin', 'Gibson', 
+            'Giles', 'Grainger', 'Greene', 'Grundy', 'Hamblen', 'Hamilton', 'Hancock', 'Hardeman', 'Hardin', 
+            'Hawkins', 'Haywood', 'Henderson', 'Henry', 'Hickman', 'Houston', 'Humphreys', 'Jackson', 'Jefferson', 
+            'Johnson', 'Knox', 'Lake', 'Lauderdale', 'Lawrence', 'Lewis', 'Lincoln', 'Loudon', 'Macon', 'Madison', 
+            'Marion', 'Marshall', 'Maury', 'McMinn', 'McNairy', 'Meigs', 'Monroe', 'Montgomery', 'Moore', 'Morgan', 
+            'Obion', 'Overton', 'Perry', 'Pickett', 'Polk', 'Putnam', 'Rhea', 'Roane', 'Robertson', 'Rutherford', 
+            'Scott', 'Sequatchie', 'Sevier', 'Shelby', 'Smith', 'Stewart', 'Sullivan', 'Sumner', 'Tipton', 'Trousdale', 
+            'Unicoi', 'Union', 'Van Buren', 'Warren', 'Washington', 'Wayne', 'Weakley', 'White', 'Williamson', 'Wilson'
+        }
+        display_df = display_df[
+            (display_df['county_dispute'].isin(tn_counties)) | 
+            (display_df['county_dispute'].isna())
+        ]
 
     st.subheader("Section A: Basic Plot Builder")
 
@@ -1901,27 +1926,9 @@ with tab5:
         elif basic_plot_type == "Box Plot":
             numeric_col = st.selectbox("Select Numeric Value (Y-axis)", options=safe_numeric_columns)
             category_col = st.selectbox("Select Category (X-axis)", options=safe_categorical_columns)
-            # Tennessee counties filter for box plots with county data
-            if category_col in ['county_dispute', 'county_residence']:
-                tn_only_box = st.checkbox("Show Tennessee counties only", value=False, key="tab5_tn_filter_box")
-            plot_df = display_df.copy()
-            if category_col in ['county_dispute', 'county_residence'] and 'tn_only_box' in locals() and tn_only_box:
-                tn_counties = {
-                    'Anderson', 'Bedford', 'Benton', 'Bledsoe', 'Blount', 'Bradley', 'Campbell', 'Cannon', 'Carroll', 
-                    'Carter', 'Cheatham', 'Chester', 'Claiborne', 'Clay', 'Cocke', 'Coffee', 'Crockett', 'Cumberland', 
-                    'Davidson', 'Decatur', 'DeKalb', 'Dickson', 'Dyer', 'Fayette', 'Fentress', 'Franklin', 'Gibson', 
-                    'Giles', 'Grainger', 'Greene', 'Grundy', 'Hamblen', 'Hamilton', 'Hancock', 'Hardeman', 'Hardin', 
-                    'Hawkins', 'Haywood', 'Henderson', 'Henry', 'Hickman', 'Houston', 'Humphreys', 'Jackson', 'Jefferson', 
-                    'Johnson', 'Knox', 'Lake', 'Lauderdale', 'Lawrence', 'Lewis', 'Lincoln', 'Loudon', 'Macon', 'Madison', 
-                    'Marion', 'Marshall', 'Maury', 'McMinn', 'McNairy', 'Meigs', 'Monroe', 'Montgomery', 'Moore', 'Morgan', 
-                    'Obion', 'Overton', 'Perry', 'Pickett', 'Polk', 'Putnam', 'Rhea', 'Roane', 'Robertson', 'Rutherford', 
-                    'Scott', 'Sequatchie', 'Sevier', 'Shelby', 'Smith', 'Stewart', 'Sullivan', 'Sumner', 'Tipton', 'Trousdale', 
-                    'Unicoi', 'Union', 'Van Buren', 'Warren', 'Washington', 'Wayne', 'Weakley', 'White', 'Williamson', 'Wilson'
-                }
-                plot_df = plot_df[plot_df[category_col].isin(tn_counties)]
             
             fig = px.box(
-                plot_df,
+                display_df,
                 x=category_col,
                 y=numeric_col,
                 title=f"{numeric_col.replace('_', ' ').title()} by {category_col.replace('_', ' ').title()}",
@@ -2584,6 +2591,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
