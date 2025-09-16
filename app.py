@@ -844,6 +844,10 @@ def get_current_username():
     """Get the current logged-in username"""
     return st.session_state.get('current_username', 'Unknown User')
 
+def is_admin_user():
+    """Check if the current user is admin"""
+    return st.session_state.get('current_username', '') == 'admin'
+
 # Updated handle_file_upload function
 def handle_file_upload():
     # Display different content based on upload stage
@@ -2519,9 +2523,37 @@ with tab7:  # Case Time Prediction tab
                 """)
 
 with tab8:
-    # Add audit trail and backup management at the top
-    st.header("Data Management & Upload")
+    # Check if user is admin
+    if not is_admin_user():
+        st.header("Data Management & Upload")
+        st.error("🔒 Access Denied")
+        st.warning("Only administrators can access the data upload functionality.")
+        st.info("Please contact an administrator if you need to upload data.")
+        
+        # Show limited read-only functionality
+        st.subheader("📊 Upload History (View Only)")
+        if st.button("View Audit Log", key="view_audit_readonly_btn"):
+            audit_df = load_audit_log()
+            if audit_df is not None and len(audit_df) > 0:
+                st.dataframe(
+                    audit_df,
+                    column_config={
+                        "Timestamp": st.column_config.DatetimeColumn("Upload Time"),
+                        "Username": "User",
+                        "Records_Added": st.column_config.NumberColumn("New Records"),
+                        "Total_Records_After": st.column_config.NumberColumn("Total After Upload")
+                    },
+                    hide_index=True
+                )
+            else:
+                st.info("No upload history found.")
+        return  # Exit the tab early
     
+    # Admin-only content 
+    st.header("Data Management & Upload")
+    st.success(f"👑 Admin Access Granted - Welcome {get_current_username()}")
+    
+    # Add audit trail and backup management
     # Create columns for the management tools
     col1, col2 = st.columns(2)
     
@@ -2591,6 +2623,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
