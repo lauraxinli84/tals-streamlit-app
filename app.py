@@ -893,24 +893,15 @@ def rebuild_dataset_from_files(uploaded_files, file_sources):
                     # Save the new dataset
                     if save_to_google_drive(final_dataset):
                         st.cache_data.clear()
-                        st.success("✅ Dataset successfully rebuilt!")
                         
-                        # Show processing summary
-                        st.subheader("Processing Summary")
-                        for log_entry in processing_log:
-                            st.write(log_entry)
-                        
-                        st.metric("Total Records in New Dataset", len(final_dataset))
-                        
-                        # Clear all session state related to rebuild
+                        # Store results in session state instead of displaying immediately
+                        st.session_state.rebuild_complete = True
+                        st.session_state.rebuild_summary = processing_log
+                        st.session_state.rebuild_total = len(final_dataset)
                         st.session_state.confirm_rebuild = False
                         
-                        # Add a button to clear and refresh
-                        if st.button("Clear and Continue", type="primary", key="clear_rebuild_btn"):
-                            # Clear all rebuild-related session state
-                            if 'confirm_rebuild' in st.session_state:
-                                del st.session_state.confirm_rebuild
-                            st.rerun()
+                        # Rerun to show the completion state
+                        st.rerun()
                         
                     else:
                         st.error("Failed to save rebuilt dataset to Google Drive")
@@ -2686,6 +2677,27 @@ with tab8:
     # Admin-only content 
     st.header("Data Management & Upload")
     st.success(f"👑 Admin Access Granted - Welcome {get_current_username()}")
+
+    # Check if rebuild just completed
+    if st.session_state.get('rebuild_complete', False):
+        st.success("✅ Dataset successfully rebuilt!")
+        
+        # Show processing summary
+        st.subheader("Processing Summary")
+        for log_entry in st.session_state.get('rebuild_summary', []):
+            st.write(log_entry)
+        
+        st.metric("Total Records in New Dataset", st.session_state.get('rebuild_total', 0))
+        
+        # Clear and continue button
+        if st.button("Clear and Continue", type="primary", key="clear_rebuild_btn"):
+            # Clear all rebuild-related session state
+            for key in ['rebuild_complete', 'rebuild_summary', 'rebuild_total', 'confirm_rebuild']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+        
+        st.stop()  # Don't show the rest of the tab until they click "Clear and Continue"
     
     # Add audit trail and backup management
     # Create columns for the management tools
@@ -2783,6 +2795,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
