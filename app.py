@@ -795,8 +795,15 @@ def load_audit_log():
         rows = audit_data[1:]
         
         df = pd.DataFrame(rows, columns=headers)
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'])
-        df = df.sort_values('Timestamp', ascending=False)  # Most recent first
+        
+        # FIX: Remove " CT" from timestamp strings before parsing
+        df['Timestamp'] = df['Timestamp'].str.replace(' CT', '', regex=False)
+        
+        # Now parse the datetime
+        df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+        
+        # Sort by timestamp, most recent first
+        df = df.sort_values('Timestamp', ascending=False)
         
         return df
         
@@ -2769,6 +2776,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
