@@ -902,8 +902,15 @@ def rebuild_dataset_from_files(uploaded_files, file_sources):
                         
                         st.metric("Total Records in New Dataset", len(final_dataset))
                         
-                        # Reset confirmation state
+                        # Clear all session state related to rebuild
                         st.session_state.confirm_rebuild = False
+                        
+                        # Add a button to clear and refresh
+                        if st.button("Clear and Continue", type="primary", key="clear_rebuild_btn"):
+                            # Clear all rebuild-related session state
+                            if 'confirm_rebuild' in st.session_state:
+                                del st.session_state.confirm_rebuild
+                            st.rerun()
                         
                     else:
                         st.error("Failed to save rebuilt dataset to Google Drive")
@@ -2776,6 +2783,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
