@@ -729,11 +729,16 @@ def standardize_new_data(df, upload_source):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
     
-    # Convert numeric columns
+    # Convert numeric columns with special handling for outcome_amount
     numeric_cols = ['poverty_pct', 'adj_poverty_pct', 'age_intake', 'outcome_amount', 'case_time']
     for col in numeric_cols:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+            if col == 'outcome_amount':
+                # Special handling for currency format - remove $ and commas
+                df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False)
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            else:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
     
     # Handle date columns
     date_cols = ['date_opened', 'date_closed']
@@ -2963,6 +2968,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
