@@ -273,6 +273,7 @@ def get_standard_mappings():
     r'(?i)^\s*1?2\s*[-: ]?\s*.*?(?:discipl|expul|suspen)': '12 Discipline (including expulsion and suspension)',
     r'(?i)^\s*1?3\s*[-: ]?\s*.*?(?:special.*?ed|learn.*?disab)': '13 Special Education/Learning Disabilities',
     r'(?i)^\s*1?4\s*[-: ]?\s*.*?(?:access|biling|resid|test)': '14 Access (Including Bilingual, Residency, Testing)',
+    r'(?i)^\s*1?5\s*[-: ]?\s*.*?(?:vocat.*?ed)': '15 Vocational Education',
     r'(?i)^\s*1?6\s*[-: ]?\s*.*?(?:student|financ.*?aid)': '16 Student Financial Aid',
     r'(?i)^\s*1?9\s*[-: ]?\s*.*?(?:educ)': '19 Other Education',
 
@@ -356,152 +357,251 @@ def get_standard_mappings():
 
 # Function to apply regex-based legal problem mapping
 def map_legal_problem_with_regex(problem_code, legal_problem_patterns):
+    """
+    Map legal problem codes to standardized format using multi-tiered approach:
+    1. Direct mapping (fastest)
+    2. Regex patterns (flexible)
+    3. Numeric code fallback (catches unknown variations)
+    """
     if pd.isna(problem_code):
         return None
     
-    # Convert to string to ensure compatibility
+    # Convert to string and strip whitespace
     problem_str = str(problem_code).strip()
-
-    direct_mappings = {
-        '01 Bankruptcy/Debtor Relief': '01 Bankruptcy/Debtor Relief',
-        '02 Collection (including Repo/Def/Garnish)': '02 Collection (including Repo/Def/Garnish)',
-        '02 Collect/Repo/Def/Garnsh': '02 Collection (including Repo/Def/Garnish)',
-        '02 - Collections (Repo, Def., Garn)': '02 Collection (including Repo/Def/Garnish)',
-        '03 Contracts / Warranties': '03 Contracts/Warranties',
-        '03 Contract/Warranties': '03 Contracts/Warranties',
-        '04 Collection Practices/Creditor Harassment': '04 Collection Practices/Creditor Harassment',
-        '04 Collection Practices / Creditor Harassment': '04 Collection Practices/Creditor Harassment',
-        '05 Predatory Lending Practices (not mortgages)': '05 Predatory Lending Practices (not mortgages)',
-        '06 Loans/Installment Purch.': '06 Loans/Installment Purch.',
-        '06 Loans/Installment Purchases (Not Collections)': '06 Loans/Installment Purch.',
-        '07 Public Utilities': '07 Public Utilities',
-        '08 Unfair and Deceptive Sales and Practices (not real property)': '08 Unfair and Deceptive Sales and Practices (not real property)',
-        '08 Unfair and Deceptive Sales Practices (Not Real Property)': '08 Unfair and Deceptive Sales and Practices (not real property)',
-        '09 Other Consumer/Finance': '09 Other Consumer/Finance',
-        '09 Other Consumer / Finance.': '09 Other Consumer/Finance',
+    
+    # Extract numeric code at start (e.g., "05", "62") for fallback matching
+    code_match = re.match(r'^\s*0*(\d+)', problem_str)
+    numeric_code = code_match.group(1).zfill(2) if code_match else None
+    
+    # Normalize for case-insensitive matching
+    normalized = problem_str.lower()
+    
+    # Direct standardization mapping - MOST EFFICIENT, TRIES FIRST
+    standardization_map = {
+        # Consumer/Finance (01-09)
+        '01 bankruptcy/debtor relief': '01 Bankruptcy/Debtor Relief',
+        '02 collection (including repo/def/garnish)': '02 Collection (including Repo/Def/Garnish)',
+        '02 collect/repo/def/garnsh': '02 Collection (including Repo/Def/Garnish)',
+        '02 - collections (repo, def., garn)': '02 Collection (including Repo/Def/Garnish)',
+        '03 contracts / warranties': '03 Contracts/Warranties',
+        '03 contracts/warranties': '03 Contracts/Warranties',
+        '03 contract/warranties': '03 Contracts/Warranties',
+        '04 collection practices/creditor harassment': '04 Collection Practices/Creditor Harassment',
+        '04 collection practices / creditor harassment': '04 Collection Practices/Creditor Harassment',
+        '05 predatory lending practices (not mortgages)': '05 Predatory Lending Practices (not mortgages)',
+        '06 loans/installment purch.': '06 Loans/Installment Purch.',
+        '06 loans/installment purchases (not collections)': '06 Loans/Installment Purch.',
+        '07 public utilities': '07 Public Utilities',
+        '08 unfair and deceptive sales and practices (not real property)': '08 Unfair and Deceptive Sales and Practices (not real property)',
+        '08 unfair and deceptive sales practices (not real property)': '08 Unfair and Deceptive Sales and Practices (not real property)',
+        '09 other consumer/finance': '09 Other Consumer/Finance',
+        '09 other consumer / finance.': '09 Other Consumer/Finance',
 
         # Education (12-19)
-        '12 Discipline (including expulsion and suspension)': '12 Discipline (including expulsion and suspension)',
-        '12 Discipline (Including Expulsion and Suspension)': '12 Discipline (including expulsion and suspension)',
-        '13 Special Education/Learning Disabilities': '13 Special Education/Learning Disabilities',
-        '14 Access (Including Bilingual, Residency, Testing)': '14 Access (Including Bilingual, Residency, Testing)',
-        '16 Student Financial Aid': '16 Student Financial Aid',
-        '19 Other Education': '19 Other Education',
+        '12 discipline (including expulsion and suspension)': '12 Discipline (including expulsion and suspension)',
+        '13 special education/learning disabilities': '13 Special Education/Learning Disabilities',
+        '14 access (including bilingual, residency, testing)': '14 Access (Including Bilingual, Residency, Testing)',
+        '15 vocational education': '15 Vocational Education',
+        '16 student financial aid': '16 Student Financial Aid',
+        '19 other education': '19 Other Education',
 
         # Employment (21-29)
-        '21 Employment Discrimination': '21 Employment Discrimination',
-        '22 Wage Claim and other FLSA Issues': '22 Wage Claim and other FLSA Issues',
-        '22 Wage Claims and Other FLSA Issues': '22 Wage Claim and other FLSA Issues',
-        '23 EITC (Earned Income Tax Credit)': '23 EITC (Earned Income Tax Credit)',
-        '24 Taxes (not EITC)': '24 Taxes (not EITC)',
-        '24 Taxes (Not EITC)': '24 Taxes (not EITC)',
-        '25 Employee Rights': '25 Employee Rights',
-        '29 Other Employment & Ceta': '29 Other Employment',
-        '29 Other Employment': '29 Other Employment',
+        '21 employment discrimination': '21 Employment Discrimination',
+        '22 wage claim and other flsa issues': '22 Wage Claim and other FLSA Issues',
+        '22 wage claims and other flsa issues': '22 Wage Claim and other FLSA Issues',
+        '23 eitc (earned income tax credit)': '23 EITC (Earned Income Tax Credit)',
+        '24 taxes (not eitc)': '24 Taxes (not EITC)',
+        '25 employee rights': '25 Employee Rights',
+        '29 other employment & ceta': '29 Other Employment',
+        '29 other employment': '29 Other Employment',
 
         # Family (30-39)
-        '30 Adoption': '30 Adoption',
-        '31 Custody/Visitation': '31 Custody/Visitation',
-        '31 Custody / Visitation': '31 Custody/Visitation',
-        '32 Divorce/Sep./Annul.': '32 Divorce/Sep./Annul.',
-        '32 Divorce / Sep. / Annul.': '32 Divorce/Sep./Annul.',
-        '33 Adult Guardianship / Conserv.': '33 Adult Guardianship/Conserv.',
-        '33 Adult Guardianship / Conservatorship': '33 Adult Guardianship/Conserv.',
-        '34 Name Change': '34 Name Change',
-        '35 Parental Rights Termin.': '35 Parental Rights Termin.',
-        '35 Parental Rights Termination': '35 Parental Rights Termin.',
-        '36 Paternity': '36 Paternity',
-        '37 Domestic Abuse': '37 Domestic Abuse',
-        '37 - Domestic Abuse': '37 Domestic Abuse',
-        '38 Support': '38 Support',
-        '39 Other Family': '39 Other Family',
+        '30 adoption': '30 Adoption',
+        '31 custody/visitation': '31 Custody/Visitation',
+        '31 custody / visitation': '31 Custody/Visitation',
+        '32 divorce/sep./annul.': '32 Divorce/Sep./Annul.',
+        '32 divorce / sep. / annul.': '32 Divorce/Sep./Annul.',
+        '33 adult guardianship / conserv.': '33 Adult Guardianship/Conserv.',
+        '33 adult guardianship/conserv.': '33 Adult Guardianship/Conserv.',
+        '33 adult guardianship / conservatorship': '33 Adult Guardianship/Conserv.',
+        '34 name change': '34 Name Change',
+        '35 parental rights termin.': '35 Parental Rights Termin.',
+        '35 parental rights termination': '35 Parental Rights Termin.',
+        '36 paternity': '36 Paternity',
+        '37 domestic abuse': '37 Domestic Abuse',
+        '37 - domestic abuse': '37 Domestic Abuse',
+        '38 support': '38 Support',
+        '39 other family': '39 Other Family',
 
         # Juvenile (41-49)
-        '41 Delinquent': '41 Delinquent',
-        '42 Neglected/Abused/Depend.': '42 Neglected/Abused/Depend.',
-        '42 Neglected/Abused/Dependent': '42 Neglected/Abused/Depend.',
-        '43 Emancipation': '43 Emancipation',
-        '44 Minor Guardian/Conservatorship': '44 Minor Guardian/Conservatorship',
-        '44 Minor Guardianship / Conservatorship': '44 Minor Guardian/Conservatorship',
-        '49 Other Juvenile': '49 Other Juvenile',
+        '41 delinquent': '41 Delinquent',
+        '42 neglected/abused/depend.': '42 Neglected/Abused/Depend.',
+        '42 neglected/abused/dependent': '42 Neglected/Abused/Depend.',
+        '43 emancipation': '43 Emancipation',
+        '44 minor guardian/conservatorship': '44 Minor Guardian/Conservatorship',
+        '44 minor guardianship / conservatorship': '44 Minor Guardian/Conservatorship',
+        '49 other juvenile': '49 Other Juvenile',
 
         # Health (51-59)
-        '51 Medicaid': '51 Medicaid',
-        '51 - Medicaid (Tenncare)': '51 Medicaid',
-        '52 Medicare': '52 Medicare',
-        "53 Goverment Children's Health Insurance Programs": "53 Government Children's Health Insurance Programs",
-        '54 Home and Community Based Care': '54 Home and Community Based Care',
-        '55 Private Health Insurance': '55 Private Health Insurance',
-        '56 Long Term Health Care Facilities': '56 Long Term Health Care Facilities',
-        '57 State and Local Health': '57 State and Local Health',
-        '59 Other Health': '59 Other Health',
+        '51 medicaid': '51 Medicaid',
+        '51 - medicaid (tenncare)': '51 Medicaid',
+        '52 medicare': '52 Medicare',
+        "53 government children's health insurance programs": "53 Government Children's Health Insurance Programs",
+        "53 goverment children's health insurance programs": "53 Government Children's Health Insurance Programs",
+        '54 home and community based care': '54 Home and Community Based Care',
+        '55 private health insurance': '55 Private Health Insurance',
+        '56 long term health care facilities': '56 Long Term Health Care Facilities',
+        '57 state and local health': '57 State and Local Health',
+        '59 other health': '59 Other Health',
 
         # Housing (61-69)
-        '61 Fed. Subsidized Housing': '61 Fed. Subsidized Housing',
-        '61 Federally Subsidized Housing': '61 Fed. Subsidized Housing',
-        '61 - Federally Subsidized Housing': '61 Fed. Subsidized Housing',
-        '62 Homeownership/Real Prop. (not foreclosure)': '62 Homeownership/Real Prop. (not foreclosure)',
-        '62 Homeownership/Real Property (Not Foreclosure)': '62 Homeownership/Real Prop. (not foreclosure)',
-        '63 Private Landlord / Tenant': '63 Private Landlord/Tenant',
-        '63 Private Landlord/Tenant': '63 Private Landlord/Tenant',
-        '63 - Private Landlord/Tenant': '63 Private Landlord/Tenant',
-        '64 Public Housing': '64 Public Housing',
-        '65 Mobile Homes': '65 Mobile Homes',
-        '66 Housing Discrimination': '66 Housing Discrimination',
-        '67 Mortgage Foreclosures (not predatory Lending/practices)': '67 Mortgage Foreclosures (not predatory Lending/practices)',
-        '67 Mortgage Foreclosures (Not Predatory Lending/Practices)': '67 Mortgage Foreclosures (not predatory Lending/practices)',
-        '68 Mortgage Predatory Lending/Practices': '68 Mortgage Predatory Lending/Practices',
-        '69 Other Housing': '69 Other Housing',
+        '61 fed. subsidized housing': '61 Fed. Subsidized Housing',
+        '61 federally subsidized housing': '61 Fed. Subsidized Housing',
+        '61 - federally subsidized housing': '61 Fed. Subsidized Housing',
+        '62 homeownership/real prop. (not foreclosure)': '62 Homeownership/Real Prop. (not foreclosure)',
+        '62 homeownership/real property (not foreclosure)': '62 Homeownership/Real Prop. (not foreclosure)',
+        '63 private landlord / tenant': '63 Private Landlord/Tenant',
+        '63 private landlord/tenant': '63 Private Landlord/Tenant',
+        '63 - private landlord/tenant': '63 Private Landlord/Tenant',
+        '64 public housing': '64 Public Housing',
+        '65 mobile homes': '65 Mobile Homes',
+        '66 housing discrimination': '66 Housing Discrimination',
+        '67 mortgage foreclosures (not predatory lending/practices)': '67 Mortgage Foreclosures (not predatory Lending/practices)',
+        '68 mortgage predatory lending/practices': '68 Mortgage Predatory Lending/Practices',
+        '69 other housing': '69 Other Housing',
 
         # Income Maintenance (71-79)
-        '71 TANF': '71 TANF',
-        '71 - TANF (Families First)': '71 TANF',
-        '72 Social Security (not SSDI)': '72 Social Security (not SSDI)',
-        '72 Social Security (Not SSDI)': '72 Social Security (not SSDI)',
-        '73 Food Stamps': '73 Food Stamps',
-        '73 Food Stamps / Commodities': '73 Food Stamps',
-        '74 SSDI': '74 SSDI',
-        '75 SSI': '75 SSI',
-        '76 Unemployment Compensation': '76 Unemployment Compensation',
-        '77 Veterans Benefits': '77 Veterans Benefits',
-        '78 State and Local Income Maintenance': '78 State and Local Income Maintenance',
-        '79 Other Income Maintenance': '79 Other Income Maintenance',
-        '79 Other Income Maintenence': '79 Other Income Maintenance',
+        '71 tanf': '71 TANF',
+        '71 - tanf (families first)': '71 TANF',
+        '72 social security (not ssdi)': '72 Social Security (not SSDI)',
+        '73 food stamps': '73 Food Stamps',
+        '73 food stamps / commodities': '73 Food Stamps',
+        '74 ssdi': '74 SSDI',
+        '75 ssi': '75 SSI',
+        '76 unemployment compensation': '76 Unemployment Compensation',
+        '77 veterans benefits': '77 Veterans Benefits',
+        '78 state and local income maintenance': '78 State and Local Income Maintenance',
+        '79 other income maintenance': '79 Other Income Maintenance',
+        '79 other income maintenence': '79 Other Income Maintenance',
 
         # Rights and Other (81-89)
-        '81 Immigration/Naturalization': '81 Immigration/Naturalization',
-        '81 Immigration / Naturalization': '81 Immigration/Naturalization',
-        '82 Mental Health': '82 Mental Health',
-        '84 Disability Rights': '84 Disability Rights',
-        '85 Civil Rights': '85 Civil Rights',
-        '86 Human Trafficking': '86 Human Trafficking',
-        '87 Expungement': '87 Expungement',
-        '87 - Expungement': '87 Expungement',
-        '87 Criminal Record Expungement': '87 Expungement',
-        '89 Other Individual Rights': '89 Other Individual Rights',
+        '81 immigration/naturalization': '81 Immigration/Naturalization',
+        '81 immigration / naturalization': '81 Immigration/Naturalization',
+        '82 mental health': '82 Mental Health',
+        '84 disability rights': '84 Disability Rights',
+        '85 civil rights': '85 Civil Rights',
+        '86 human trafficking': '86 Human Trafficking',
+        '87 expungement': '87 Expungement',
+        '87 - expungement': '87 Expungement',
+        '87 criminal record expungement': '87 Expungement',
+        '89 other individual rights': '89 Other Individual Rights',
 
         # Miscellaneous (93-99)
-        '93 Licenses (Auto and Other)': '93 Licenses (Auto and Other)',
-        '93 Licenses (Drivers, Occupational, and Others)': '93 Licenses (Auto and Other)',
-        '94 Torts': '94 Torts',
-        '95 Wills / Estates': '95 Wills/Estates',
-        '95 Wills and Estates': '95 Wills/Estates',
-        '96 Advance Directives/Powers of Attorney': '96 Advance Directives/Powers of Attorney',
-        '96 Advanced Directives/Powers of Attorney': '96 Advance Directives/Powers of Attorney',
-        '97 Municipal Legal Needs': '97 Municipal Legal Needs',
-        '99 Other Miscellaneous': '99 Other Miscellaneous'
+        '93 licenses (auto and other)': '93 Licenses (Auto and Other)',
+        '93 licenses (drivers, occupational, and others)': '93 Licenses (Auto and Other)',
+        '94 torts': '94 Torts',
+        '95 wills / estates': '95 Wills/Estates',
+        '95 wills/estates': '95 Wills/Estates',
+        '95 wills and estates': '95 Wills/Estates',
+        '96 advance directives/powers of attorney': '96 Advance Directives/Powers of Attorney',
+        '96 advanced directives/powers of attorney': '96 Advance Directives/Powers of Attorney',
+        '97 municipal legal needs': '97 Municipal Legal Needs',
+        '99 other miscellaneous': '99 Other Miscellaneous'
     }
     
-    # First try direct mapping for efficiency
-    if problem_str in direct_mappings:
-        return direct_mappings[problem_str]
+    # Try direct mapping first (most efficient)
+    if normalized in standardization_map:
+        return standardization_map[normalized]
     
-    # Then try regex patterns
+    # Try regex patterns as fallback for unknown variations
     for pattern, standardized_code in legal_problem_patterns.items():
-        if re.search(pattern, problem_str):
+        if re.search(pattern, problem_str, re.IGNORECASE):
             return standardized_code
     
-    # Return original if no match found
+    # Final fallback: match by numeric code alone (catches completely unknown variations)
+    if numeric_code:
+        code_lookup = {
+            '01': '01 Bankruptcy/Debtor Relief',
+            '02': '02 Collection (including Repo/Def/Garnish)',
+            '03': '03 Contracts/Warranties',
+            '04': '04 Collection Practices/Creditor Harassment',
+            '05': '05 Predatory Lending Practices (not mortgages)',
+            '06': '06 Loans/Installment Purch.',
+            '07': '07 Public Utilities',
+            '08': '08 Unfair and Deceptive Sales and Practices (not real property)',
+            '09': '09 Other Consumer/Finance',
+            '12': '12 Discipline (including expulsion and suspension)',
+            '13': '13 Special Education/Learning Disabilities',
+            '14': '14 Access (Including Bilingual, Residency, Testing)',
+            '15': '15 Vocational Education',
+            '16': '16 Student Financial Aid',
+            '19': '19 Other Education',
+            '21': '21 Employment Discrimination',
+            '22': '22 Wage Claim and other FLSA Issues',
+            '23': '23 EITC (Earned Income Tax Credit)',
+            '24': '24 Taxes (not EITC)',
+            '25': '25 Employee Rights',
+            '29': '29 Other Employment',
+            '30': '30 Adoption',
+            '31': '31 Custody/Visitation',
+            '32': '32 Divorce/Sep./Annul.',
+            '33': '33 Adult Guardianship/Conserv.',
+            '34': '34 Name Change',
+            '35': '35 Parental Rights Termin.',
+            '36': '36 Paternity',
+            '37': '37 Domestic Abuse',
+            '38': '38 Support',
+            '39': '39 Other Family',
+            '41': '41 Delinquent',
+            '42': '42 Neglected/Abused/Depend.',
+            '43': '43 Emancipation',
+            '44': '44 Minor Guardian/Conservatorship',
+            '49': '49 Other Juvenile',
+            '51': '51 Medicaid',
+            '52': '52 Medicare',
+            '53': "53 Government Children's Health Insurance Programs",
+            '54': '54 Home and Community Based Care',
+            '55': '55 Private Health Insurance',
+            '56': '56 Long Term Health Care Facilities',
+            '57': '57 State and Local Health',
+            '59': '59 Other Health',
+            '61': '61 Fed. Subsidized Housing',
+            '62': '62 Homeownership/Real Prop. (not foreclosure)',
+            '63': '63 Private Landlord/Tenant',
+            '64': '64 Public Housing',
+            '65': '65 Mobile Homes',
+            '66': '66 Housing Discrimination',
+            '67': '67 Mortgage Foreclosures (not predatory Lending/practices)',
+            '68': '68 Mortgage Predatory Lending/Practices',
+            '69': '69 Other Housing',
+            '71': '71 TANF',
+            '72': '72 Social Security (not SSDI)',
+            '73': '73 Food Stamps',
+            '74': '74 SSDI',
+            '75': '75 SSI',
+            '76': '76 Unemployment Compensation',
+            '77': '77 Veterans Benefits',
+            '78': '78 State and Local Income Maintenance',
+            '79': '79 Other Income Maintenance',
+            '81': '81 Immigration/Naturalization',
+            '82': '82 Mental Health',
+            '84': '84 Disability Rights',
+            '85': '85 Civil Rights',
+            '86': '86 Human Trafficking',
+            '87': '87 Expungement',
+            '89': '89 Other Individual Rights',
+            '93': '93 Licenses (Auto and Other)',
+            '94': '94 Torts',
+            '95': '95 Wills/Estates',
+            '96': '96 Advance Directives/Powers of Attorney',
+            '97': '97 Municipal Legal Needs',
+            '99': '99 Other Miscellaneous'
+        }
+        
+        if numeric_code in code_lookup:
+            return code_lookup[numeric_code]
+    
+    # If no match found, return original
     return problem_code
 
 def clean_race_with_regex(race_value):
@@ -581,21 +681,6 @@ def clean_gender_with_regex(gender_value):
         return 'Other/Unknown'
     
     return 'Other/Unknown'
-
-def clean_legal_problem_parentheses(problem_code):
-    """
-    Standardize parentheses in legal problem codes
-    """
-    if pd.isna(problem_code):
-        return None
-    
-    problem_str = str(problem_code).strip()
-    
-    # Standardize common parentheses variations
-    problem_str = re.sub(r'\(Not\s+', '(not ', problem_str, flags=re.IGNORECASE)
-    problem_str = re.sub(r'\(Including\s+', '(including ', problem_str, flags=re.IGNORECASE)
-    
-    return problem_str
 
 # Standardization function
 def standardize_new_data(df, upload_source):  
@@ -683,12 +768,25 @@ def standardize_new_data(df, upload_source):
         
     # Standardize legal problem codes
     if 'legal_problem_code' in df.columns:
-        # Clean parentheses first
-        df['legal_problem_code'] = df['legal_problem_code'].apply(clean_legal_problem_parentheses)
-        # Then apply mapping
+        # Step 1: Clean whitespace
+        df['legal_problem_code'] = df['legal_problem_code'].astype(str).str.strip()
+        
+        # Step 2: Apply mapping function
         df['legal_problem_code'] = df['legal_problem_code'].apply(
             lambda x: map_legal_problem_with_regex(x, legal_problem_mapping)
         )
+        
+        # Step 3: Final cleanup for any edge cases that slipped through
+        final_cleanup = {
+            '62 Homeownership/Real Property (not Foreclosure)': '62 Homeownership/Real Prop. (not foreclosure)',
+            '62 Homeownership/Real Property (Not Foreclosure)': '62 Homeownership/Real Prop. (not foreclosure)',
+            '08 Unfair and Deceptive Sales Practices (Not Real Property)': '08 Unfair and Deceptive Sales and Practices (not real property)',
+            '67 Mortgage Foreclosures (Not Predatory Lending/Practices)': '67 Mortgage Foreclosures (not predatory Lending/practices)',
+            '67 Mortgage Foreclosures (not Predatory Lending/Practices)': '67 Mortgage Foreclosures (not predatory Lending/practices)',
+            '05 Predatory Lending Practices (Not Mortgages)': '05 Predatory Lending Practices (not mortgages)',
+            '05 Predatory Lending Practices (not Mortgages)': '05 Predatory Lending Practices (not mortgages)',
+        }
+        df['legal_problem_code'] = df['legal_problem_code'].replace(final_cleanup)
 
     # Clean and normalize 'domestic_violence'
     if 'domestic_violence' in df.columns:
@@ -2968,6 +3066,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
