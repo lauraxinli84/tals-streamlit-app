@@ -165,7 +165,9 @@ def get_standard_mappings():
         'White': 'White',
         'White (Not Hispanic)': 'White',
         'Caucasian/White': 'White',
+        'Caucasian': 'White',
         'White - Not Hispanic': 'White',
+        'white': 'White',
         
         # Black categories
         'Black': 'Black',
@@ -173,29 +175,84 @@ def get_standard_mappings():
         'African American/Black': 'Black',
         'Black or African American': 'Black',
         'Black - Not Hispanic': 'Black',
+        'African-American': 'Black',
+        'African American': 'Black',
+        'AA': 'Black',
+        'black': 'Black',
         
         # Native American categories
         'Native American': 'Native American',
         'Native American or Alaska Native': 'Native American',
+        'American Indian or Alaska Native': 'Native American',
         'American Indian or Alaska Native and White': 'Native American',
+        'American Indian or Alaska Native anc': 'Native American',  # Your truncated version
         
         # Asian and Pacific Islander categories
         'Asian': 'Asian/Pacific Islander',
         'Asian or Pacific Islander': 'Asian/Pacific Islander',
+        'Asian/Pacific Islander': 'Asian/Pacific Islander',
         'Native Hawaiian or Other Pacific Islander': 'Asian/Pacific Islander',
         
         # Hispanic
         'Hispanic': 'Hispanic',
+        'hispanic': 'Hispanic',
         
         # Multiracial categories
+        'Multiracial': 'Multiracial',
         'Mulitracial': 'Multiracial',
+        'Multi-Racial': 'Multiracial',
         'Black or African American and White': 'Multiracial',
         'Asian and White': 'Multiracial',
         
         # Other categories
         'Other': 'Other/Unknown',
         'Other/Unknown': 'Other/Unknown',
+        'Other Ethnic Group': 'Other/Unknown',
         'No Response': 'Other/Unknown',
+        'Organization/Group': 'Other/Unknown',
+        '': 'Other/Unknown',
+        'nan': 'Other/Unknown',
+        None: 'Other/Unknown'
+    }
+    
+    # Gender mapping
+    gender_mapping = {
+        # Female
+        'Female': 'Female',
+        'female': 'Female',
+        'F': 'Female',
+        'Woman': 'Female',
+        
+        # Male
+        'Male': 'Male',
+        'male': 'Male',
+        'M': 'Male',
+        'Man': 'Male',
+        
+        # Transgender
+        'Transgender Female to Male': 'Transgender',
+        'Transgender Male to Female': 'Transgender',
+        'Trans man': 'Transgender',
+        'Trans woman': 'Transgender',
+        'Transgender': 'Transgender',
+        'Trans': 'Transgender',
+        
+        # Non-binary
+        'Non-binary': 'Non-binary',
+        'Non-Binary': 'Non-binary',
+        'Nonbinary': 'Non-binary',
+        'Gender Non-Conforming': 'Non-binary',
+        'Genderqueer': 'Non-binary',
+        
+        # Other/Unknown
+        "Don't Know": 'Other/Unknown',
+        'Other': 'Other/Unknown',
+        'Prefer not to say': 'Other/Unknown',
+        'Decline to state': 'Other/Unknown',
+        'G': 'Other/Unknown',
+        '7': 'Other/Unknown',
+        'nan': 'Other/Unknown',
+        '': 'Other/Unknown',
         None: 'Other/Unknown'
     }
     
@@ -295,7 +352,7 @@ def get_standard_mappings():
     r'(?i)^\s*9?7\s*[-: ]?\s*.*?(?:munic.*?legal)': '97 Municipal Legal Needs',
     r'(?i)^\s*9?9\s*[-: ]?\s*.*?(?:misc|other)': '99 Other Miscellaneous'
 }
-    return column_mapping, race_mapping, legal_problem_mapping
+    return column_mapping, race_mapping, gender_mapping, legal_problem_mapping
 
 # Function to apply regex-based legal problem mapping
 def map_legal_problem_with_regex(problem_code, legal_problem_patterns):
@@ -447,9 +504,102 @@ def map_legal_problem_with_regex(problem_code, legal_problem_patterns):
     # Return original if no match found
     return problem_code
 
+def clean_race_with_regex(race_value):
+    """
+    Clean race values using regex for flexible matching
+    """
+    if pd.isna(race_value) or str(race_value).strip() == '':
+        return 'Other/Unknown'
+    
+    race_str = str(race_value).strip().lower()
+    
+    # White patterns
+    if re.search(r'\b(white|caucasian)\b', race_str):
+        return 'White'
+    
+    # Black patterns
+    if re.search(r'\b(black|african.?american|aa)\b', race_str):
+        return 'Black'
+    
+    # Native American patterns
+    if re.search(r'\b(native|american.?indian|alaska.?native)\b', race_str):
+        return 'Native American'
+    
+    # Asian/Pacific Islander patterns
+    if re.search(r'\b(asian|pacific.?islander|hawaiian)\b', race_str):
+        return 'Asian/Pacific Islander'
+    
+    # Hispanic patterns
+    if re.search(r'\b(hispanic|latino|latina|latinx)\b', race_str):
+        return 'Hispanic'
+    
+    # Multiracial patterns
+    if re.search(r'\b(multi.?racial|multiracial|two.?or.?more)\b', race_str):
+        return 'Multiracial'
+    
+    # Check for "and" which often indicates multiracial
+    if ' and ' in race_str:
+        return 'Multiracial'
+    
+    # Organization/Group
+    if re.search(r'\b(organization|group)\b', race_str):
+        return 'Other/Unknown'
+    
+    return 'Other/Unknown'
+
+def clean_gender_with_regex(gender_value):
+    """
+    Clean gender values using regex for flexible matching
+    """
+    if pd.isna(gender_value) or str(gender_value).strip() == '':
+        return 'Other/Unknown'
+    
+    gender_str = str(gender_value).strip().lower()
+    
+    # Female patterns
+    if re.search(r'^(f|female|woman)$', gender_str):
+        return 'Female'
+    
+    # Male patterns
+    if re.search(r'^(m|male|man)$', gender_str):
+        return 'Male'
+    
+    # Transgender patterns
+    if re.search(r'\b(trans|transgender)\b', gender_str):
+        return 'Transgender'
+    
+    # Non-binary patterns
+    if re.search(r'\b(non.?binary|nonbinary|genderqueer|gender.?non.?conforming)\b', gender_str):
+        return 'Non-binary'
+    
+    # Unknown/Other patterns
+    if re.search(r'\b(don.?t.?know|unknown|prefer.?not|decline|other)\b', gender_str):
+        return 'Other/Unknown'
+    
+    # Single letters or numbers that aren't F or M
+    if re.match(r'^[a-eg-z0-9]$', gender_str):
+        return 'Other/Unknown'
+    
+    return 'Other/Unknown'
+
+def clean_legal_problem_parentheses(problem_code):
+    """
+    Standardize parentheses in legal problem codes
+    """
+    if pd.isna(problem_code):
+        return None
+    
+    problem_str = str(problem_code).strip()
+    
+    # Standardize common parentheses variations
+    problem_str = re.sub(r'\(Not\s+', '(not ', problem_str, flags=re.IGNORECASE)
+    problem_str = re.sub(r'\(Including\s+', '(including ', problem_str, flags=re.IGNORECASE)
+    
+    return problem_str
+
 # Standardization function
 def standardize_new_data(df, upload_source):  
-    column_mapping, race_mapping, legal_problem_mapping = get_standard_mappings()
+    column_mapping, race_mapping, gender_mapping, legal_problem_mapping = get_standard_mappings()
     
     # First standardize the column names
     df = df.rename(columns=column_mapping)
@@ -515,11 +665,30 @@ def standardize_new_data(df, upload_source):
 
     # Standardize race categories if present
     if 'race' in df.columns:
+        # Step 1: Direct mapping
         df['race'] = df['race'].replace(race_mapping)
+        # Step 2: Regex-based cleaning for anything not mapped
+        df['race'] = df['race'].apply(
+            lambda x: clean_race_with_regex(x) if x not in race_mapping.values() else x
+        )
 
-    # Standardize legal problem codes if present
+    # Standardize gender categories 
+    if 'gender' in df.columns:
+        # Step 1: Direct mapping
+        df['gender'] = df['gender'].replace(gender_mapping)
+        # Step 2: Regex-based cleaning for anything not mapped
+        df['gender'] = df['gender'].apply(
+            lambda x: clean_gender_with_regex(x) if x not in gender_mapping.values() else x
+        )
+        
+    # Standardize legal problem codes
     if 'legal_problem_code' in df.columns:
-        df['legal_problem_code'] = df['legal_problem_code'].apply(lambda x: map_legal_problem_with_regex(x, legal_problem_mapping))
+        # Clean parentheses first
+        df['legal_problem_code'] = df['legal_problem_code'].apply(clean_legal_problem_parentheses)
+        # Then apply mapping
+        df['legal_problem_code'] = df['legal_problem_code'].apply(
+            lambda x: map_legal_problem_with_regex(x, legal_problem_mapping)
+        )
 
     # Clean and normalize 'domestic_violence'
     if 'domestic_violence' in df.columns:
@@ -630,7 +799,7 @@ def load_data():
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce', cache=False).dt.normalize()
         
-        # Convert numeric columns (EXPANDED LIST)
+        # Convert numeric columns 
         numeric_columns = [
             'poverty_pct', 'adj_poverty_pct', 'age_intake', 'outcome_amount', 'case_time',
             'household_total', 'household_adults', 'household_children', 'days_open'
@@ -655,7 +824,28 @@ def load_data():
         for col in categorical_columns:
             if col in df.columns:
                 df[col] = pd.Categorical(df[col])
+                
+        # Apply standardization to loaded data
+        _, race_mapping, gender_mapping, _ = get_standard_mappings()
         
+        # Clean race
+        if 'race' in df.columns:
+            df['race'] = df['race'].astype(str)  # Convert from categorical back to string temporarily
+            df['race'] = df['race'].replace(race_mapping)
+            df['race'] = df['race'].apply(
+                lambda x: clean_race_with_regex(x) if pd.notna(x) and x not in race_mapping.values() else x
+            )
+            df['race'] = pd.Categorical(df['race'])  # Convert back to categorical for optimization
+        
+        # Clean gender
+        if 'gender' in df.columns:
+            df['gender'] = df['gender'].astype(str)  # Convert from categorical back to string temporarily
+            df['gender'] = df['gender'].replace(gender_mapping)
+            df['gender'] = df['gender'].apply(
+                lambda x: clean_gender_with_regex(x) if pd.notna(x) and x not in gender_mapping.values() else x
+            )
+            df['gender'] = pd.Categorical(df['gender'])  # Convert back to categorical for optimization
+            
         return df
         
     except Exception as e:
@@ -1256,42 +1446,20 @@ def clean_demographics_for_viz(df):
     # Fix age = 0 (treat as null/missing)
     df_clean['age_intake_clean'] = df_clean['age_intake'].replace(0, pd.NA)
     
-    # Standardize race categories
-    race_mapping = {
-        'White': 'White',
-        'Black': 'Black', 
-        'Black or AA': 'Black',
-        'Hispanic': 'Hispanic',
-        'Multiracial': 'Multiracial',
-        'Multi-Racial': 'Multiracial', 
-        'Asian/Pacific Islander': 'Asian/Pacific Islander',
-        'Native American': 'Native American',
-        'American Indian or Alaska Native': 'Native American',
-        'Other/Unknown': 'Other',
-        'Other Ethnic Group': 'Other',
-        'Organization/Group': 'Other'
-    }
+    # Use the same standardization logic
+    _, race_mapping, gender_mapping, _ = get_standard_mappings()
     
-    df_clean['race_clean'] = df_clean['race'].map(race_mapping).fillna('Other')
+    # Standardize race
+    df_clean['race_clean'] = df_clean['race'].replace(race_mapping)
+    df_clean['race_clean'] = df_clean['race_clean'].apply(
+        lambda x: clean_race_with_regex(x) if pd.notna(x) and x not in race_mapping.values() else x
+    )
     
-    # Standardize gender categories  
-    gender_mapping = {
-        'Female': 'Female',
-        'Male': 'Male', 
-        'Transgender Female to Male': 'Transgender',
-        'Transgender Male to Female': 'Transgender',
-        'Trans man': 'Transgender',
-        'Trans woman': 'Transgender',
-        'Non-binary': 'Non-binary',
-        'Non-Binary': 'Non-binary',
-        "Don't Know": 'Other',
-        'Other': 'Other',
-        'G': 'Other',
-        '7': 'Other',
-        'nan': 'Other'
-    }
-    
-    df_clean['gender_clean'] = df_clean['gender'].map(gender_mapping).fillna('Other')
+    # Standardize gender
+    df_clean['gender_clean'] = df_clean['gender'].replace(gender_mapping)
+    df_clean['gender_clean'] = df_clean['gender_clean'].apply(
+        lambda x: clean_gender_with_regex(x) if pd.notna(x) and x not in gender_mapping.values() else x
+    )
     
     return df_clean
 
@@ -2795,6 +2963,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
