@@ -2802,10 +2802,6 @@ with tab6:
             
             # Try to make prediction
             try:
-                # Add debug information
-                st.write("Debug: Processed data shape:", processed_data.shape)
-                st.write("Debug: Model loaded successfully:", model is not None)
-                
                 risk_score = model.predict_proba(processed_data)[0, 1]
                 
                 # Use interpret_risk_score function from preprocessing module
@@ -3308,6 +3304,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
