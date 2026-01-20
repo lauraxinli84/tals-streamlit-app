@@ -2,7 +2,7 @@ streamlit
 pandas
 numpy
 plotly
-scikit-learn
+scikit-learn==1.3.2
 joblib
 shap
 streamlit-shap
@@ -12,3 +12,4 @@ google-api-python-client
 matplotlib
 openpyxl
 pytz
+
