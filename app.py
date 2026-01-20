@@ -2802,7 +2802,14 @@ with tab6:
             
             # Try to make prediction
             try:
+                # Add debug information
+                st.write("Debug: Processed data shape:", processed_data.shape)
+                st.write("Debug: Model loaded successfully:", model is not None)
+                
                 risk_score = model.predict_proba(processed_data)[0, 1]
+                
+                # Use interpret_risk_score function from preprocessing module
+                result = interpret_risk_score(risk_score)
                 
                 # Use interpret_risk_score function from preprocessing module
                 result = interpret_risk_score(risk_score)
@@ -2916,15 +2923,24 @@ with tab6:
                 
             except Exception as e:
                 st.error(f"❌ Error making prediction: {str(e)}")
+                
+                # Show more details
+                import traceback
+                with st.expander("Technical Error Details"):
+                    st.code(traceback.format_exc())
+                
                 with st.expander("Troubleshooting"):
                     st.markdown("""
                     **Common issues:**
-                    - Make sure all dropdown fields have valid selections
-                    - Verify household numbers add up correctly  
-                    - Check that ZIP code is 5 digits
-                    - Ensure age is within valid range (18-120)
-                    - Verify poverty percentages are reasonable
+                    - Model/scikit-learn version mismatch
+                    - Missing or invalid input data
+                    - Feature mismatch between training and prediction
+                    
+                    **Current versions:**
                     """)
+                    import sklearn
+                    st.write(f"- Scikit-learn: {sklearn.__version__}")
+                    st.write(f"- Model loaded: {model is not None}")
 
 with tab7:  # Case Time Prediction tab
     st.header("Case Time Prediction")
@@ -3292,6 +3308,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
