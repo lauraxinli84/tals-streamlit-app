@@ -2158,6 +2158,267 @@ with tab4:
     # Call the function
     display_cooccurrence_analysis(display_df)
 
+    # === Repeat Clients Analysis ===
+    st.markdown("---")
+    st.subheader("Repeat Clients Analysis")
+    st.info("📊 Analyzing clients who had multiple cases opened in the same calendar year")
+    
+    # Prepare data for repeat client analysis
+    repeat_df = display_df.copy()
+    
+    # Filter out cases without valid open dates
+    repeat_df = repeat_df[repeat_df['date_opened'].notna()].copy()
+    
+    if len(repeat_df) < 2:
+        st.warning("Not enough data with valid open dates for repeat client analysis.")
+    else:
+        # Extract year from date_opened
+        repeat_df['year_opened'] = pd.to_datetime(repeat_df['date_opened']).dt.year
+        
+        # Create service level categories based on case_time
+        def categorize_service_level(row):
+            """Categorize service level based on case_time and close_reason"""
+            case_time = row['case_time']
+            close_reason = str(row['close_reason'])
+            
+            # If case_time is available, use it primarily
+            if pd.notna(case_time) and case_time > 0:
+                if case_time < 3:
+                    return 'Brief Service (<3 hrs)'
+                elif case_time < 10:
+                    return 'Moderate Service (3-10 hrs)'
+                else:
+                    return 'Intensive Service (10+ hrs)'
+            
+            # Fallback to close_reason categorization
+            brief_reasons = ['Counsel and Advice', 'Brief Service', 'Referred', 'X1-Brief Service']
+            limited_reasons = ['Limited Action', 'Negotiated Settlement', 'Administrative Decision']
+            
+            if any(reason.lower() in close_reason.lower() for reason in brief_reasons):
+                return 'Brief Service'
+            elif any(reason.lower() in close_reason.lower() for reason in limited_reasons):
+                return 'Moderate Service'
+            else:
+                return 'Unknown Service Level'
+        
+        repeat_df['service_level'] = repeat_df.apply(categorize_service_level, axis=1)
+        
+        # Count cases per client per year
+        client_year_counts = repeat_df.groupby(['client_id', 'year_opened']).size().reset_index(name='case_count')
+        
+        # Filter to only repeat clients (2+ cases in same year)
+        repeat_clients = client_year_counts[client_year_counts['case_count'] >= 2]
+        
+        if len(repeat_clients) == 0:
+            st.info("No repeat clients found in the filtered data (clients with 2+ cases in the same year).")
+        else:
+            # Summary metrics
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_repeat_clients = repeat_clients['client_id'].nunique()
+                st.metric("Repeat Clients", f"{total_repeat_clients:,}")
+            
+            with col2:
+                avg_cases = repeat_clients['case_count'].mean()
+                st.metric("Avg Cases per Repeat Client", f"{avg_cases:.1f}")
+            
+            with col3:
+                max_cases = repeat_clients['case_count'].max()
+                st.metric("Max Cases (Single Client/Year)", int(max_cases))
+            
+            with col4:
+                total_unique_clients = repeat_df['client_id'].nunique()
+                repeat_pct = (total_repeat_clients / total_unique_clients * 100) if total_unique_clients > 0 else 0
+                st.metric("% of Clients Who Return", f"{repeat_pct:.1f}%")
+            
+            # Visualization tabs
+            viz_tab1, viz_tab2, viz_tab3 = st.tabs([
+                "Repeat Clients Trend",
+                "Close Reasons Analysis", 
+                "Service Level Analysis"
+            ])
+            
+            with viz_tab1:
+                # Trend over time
+                repeat_by_year = repeat_clients.groupby('year_opened').agg({
+                    'client_id': 'nunique',
+                    'case_count': 'sum'
+                }).reset_index()
+                repeat_by_year.columns = ['Year', 'Repeat Clients', 'Total Repeat Cases']
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=repeat_by_year['Year'],
+                    y=repeat_by_year['Repeat Clients'],
+                    mode='lines+markers',
+                    name='Number of Repeat Clients',
+                    line=dict(color='#1f77b4', width=3)
+                ))
+                
+                fig.update_layout(
+                    title='Repeat Clients Over Time',
+                    xaxis_title='Year',
+                    yaxis_title='Number of Repeat Clients',
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Distribution of case counts
+                case_count_dist = repeat_clients['case_count'].value_counts().sort_index()
+                
+                fig2 = px.bar(
+                    x=case_count_dist.index,
+                    y=case_count_dist.values,
+                    title='Distribution of Cases per Repeat Client',
+                    labels={'x': 'Number of Cases in Same Year', 'y': 'Number of Clients'}
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+            
+            with viz_tab2:
+                # Get all cases for repeat clients
+                repeat_client_ids = repeat_clients['client_id'].unique()
+                repeat_cases = repeat_df[repeat_df['client_id'].isin(repeat_client_ids)].copy()
+                
+                # Compare close reasons: repeat vs non-repeat clients
+                non_repeat_client_ids = repeat_df[~repeat_df['client_id'].isin(repeat_client_ids)]['client_id'].unique()
+                non_repeat_cases = repeat_df[repeat_df['client_id'].isin(non_repeat_client_ids)]
+                
+                # Get top close reasons for each group
+                repeat_close_reasons = repeat_cases['close_reason'].value_counts().head(10)
+                non_repeat_close_reasons = non_repeat_cases['close_reason'].value_counts().head(10)
+                
+                # Combine for comparison
+                comparison_df = pd.DataFrame({
+                    'Repeat Clients': repeat_close_reasons,
+                    'Non-Repeat Clients': non_repeat_close_reasons
+                }).fillna(0)
+                
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    name='Repeat Clients',
+                    x=comparison_df.index,
+                    y=comparison_df['Repeat Clients'],
+                ))
+                fig.add_trace(go.Bar(
+                    name='Non-Repeat Clients',
+                    x=comparison_df.index,
+                    y=comparison_df['Non-Repeat Clients'],
+                ))
+                
+                fig.update_layout(
+                    title='Top 10 Close Reasons: Repeat vs Non-Repeat Clients',
+                    xaxis_title='Close Reason',
+                    yaxis_title='Number of Cases',
+                    barmode='group',
+                    height=500,
+                    xaxis_tickangle=45
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with viz_tab3:
+                # Service level analysis for repeat clients
+                repeat_service = repeat_cases.groupby(['service_level', 'close_reason']).size().reset_index(name='count')
+                
+                # Overall service level distribution
+                service_dist = repeat_cases['service_level'].value_counts()
+                
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    fig = px.pie(
+                        values=service_dist.values,
+                        names=service_dist.index,
+                        title='Service Level Distribution (Repeat Client Cases)'
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col_b:
+                    # Average case time by number of cases
+                    case_time_by_count = repeat_df[repeat_df['client_id'].isin(repeat_client_ids)].copy()
+                    case_time_by_count = case_time_by_count.merge(
+                        client_year_counts[['client_id', 'year_opened', 'case_count']], 
+                        on=['client_id', 'year_opened']
+                    )
+                    
+                    avg_time = case_time_by_count.groupby('case_count')['case_time'].mean().reset_index()
+                    
+                    fig = px.bar(
+                        avg_time,
+                        x='case_count',
+                        y='case_time',
+                        title='Average Case Time by Number of Cases per Year',
+                        labels={'case_count': 'Cases per Year', 'case_time': 'Avg Case Time (hours)'}
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Service level by close reason heatmap
+                st.markdown("#### Service Level by Close Reason (Top Combinations)")
+                top_combinations = repeat_service.nlargest(15, 'count')
+                
+                fig = px.bar(
+                    top_combinations,
+                    x='close_reason',
+                    y='count',
+                    color='service_level',
+                    title='Top 15 Service Level & Close Reason Combinations',
+                    labels={'count': 'Number of Cases', 'close_reason': 'Close Reason'},
+                    height=500
+                )
+                fig.update_layout(xaxis_tickangle=45)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Detailed table
+            with st.expander("📋 View Detailed Repeat Client Data"):
+                # Create summary table
+                detailed_summary = []
+                
+                for _, row in repeat_clients.iterrows():
+                    client_id = row['client_id']
+                    year = row['year_opened']
+                    case_count = row['case_count']
+                    
+                    # Get all cases for this client in this year
+                    client_cases = repeat_df[
+                        (repeat_df['client_id'] == client_id) & 
+                        (repeat_df['year_opened'] == year)
+                    ]
+                    
+                    close_reasons = client_cases['close_reason'].value_counts().to_dict()
+                    service_levels = client_cases['service_level'].value_counts().to_dict()
+                    
+                    detailed_summary.append({
+                        'Client ID': client_id,
+                        'Year': int(year),
+                        'Total Cases': int(case_count),
+                        'Close Reasons': ', '.join([f"{k} ({v})" for k, v in close_reasons.items()]),
+                        'Service Levels': ', '.join([f"{k} ({v})" for k, v in service_levels.items()])
+                    })
+                
+                summary_df = pd.DataFrame(detailed_summary)
+                summary_df = summary_df.sort_values(['Year', 'Total Cases'], ascending=[False, False])
+                
+                st.dataframe(
+                    summary_df,
+                    column_config={
+                        'Client ID': st.column_config.TextColumn('Client ID', width='small'),
+                        'Year': st.column_config.NumberColumn('Year', width='small'),
+                        'Total Cases': st.column_config.NumberColumn('Cases', width='small'),
+                        'Close Reasons': st.column_config.TextColumn('Close Reasons (Count)', width='large'),
+                        'Service Levels': st.column_config.TextColumn('Service Levels (Count)', width='medium')
+                    },
+                    hide_index=True,
+                    height=400
+                )
+                
+                # Download option
+                st.download_button(
+                    "Download Repeat Client Summary",
+                    summary_df.to_csv(index=False),
+                    file_name="repeat_clients_summary.csv",
+                    mime="text/csv"
+                )
+
 with tab5:
     # Global Tennessee counties toggle
     tn_counties_only = st.checkbox(
@@ -3066,6 +3327,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
