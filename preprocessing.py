@@ -5,7 +5,6 @@ Contains functions for both domestic violence risk prediction and case time pred
 
 import pandas as pd
 import numpy as np
-import joblib
 
 # --- Domestic Violence Model Functions ---
 
@@ -32,6 +31,10 @@ def preprocess_client_data(client_data):
     # Calculate single_parent feature
     df['single_parent'] = ((df['household_adults'] == 1) & 
                          (df['household_children'] > 0)).astype(int)
+    
+    # Ensure zip_code is present (required by DV model)
+    if 'zip_code' not in df.columns:
+        df['zip_code'] = np.nan
     
     # Important: When using this in production, missing values will be handled
     # by the preprocessing pipeline inside the saved model
@@ -64,8 +67,14 @@ def engineer_case_time_features(df):
     """
     Apply the exact same feature engineering as used in model training.
     This must match the engineer_features function from the training code.
+    
+    IMPORTANT: For single-row predictions, we use fallback values instead of .median()
     """
     data = df.copy()
+    
+    # Define fallback values for single-row predictions
+    # These are reasonable defaults based on the training data
+    AGE_FALLBACK = 45.0  # Middle-aged adult
     
     # Adult-to-child ratio (handle division by zero)
     data['adult_child_ratio'] = np.where(
@@ -85,7 +94,10 @@ def engineer_case_time_features(df):
     data['poverty_intensity'] = np.abs(data['adj_poverty_pct'].fillna(100) - 100)
     
     # Age groups (handle missing values and outliers)
-    data['age_intake'] = data['age_intake'].fillna(data['age_intake'].median())
+    # Use fillna with a scalar value instead of .median() for single-row compatibility
+    if data['age_intake'].isna().any():
+        data['age_intake'] = data['age_intake'].fillna(AGE_FALLBACK)
+    
     data['age_intake'] = np.clip(data['age_intake'], 18, 100)  # Reasonable age bounds
     data['age_group'] = pd.cut(data['age_intake'], 
                               bins=[0, 25, 45, 65, 100], 
@@ -139,12 +151,27 @@ def engineer_case_time_features(df):
     data['legal_problem_group'] = data['legal_problem_code'].apply(group_legal_codes)
     
     # Replace any remaining inf/nan values in engineered features
+    # Use scalar fallbacks instead of .median() for single-row compatibility
     engineered_cols = ['adult_child_ratio', 'household_density', 'poverty_intensity', 'county_match',
                       'age_poverty_interaction', 'household_complexity', 'high_poverty', 
                       'elderly_case', 'large_household']
+    
+    fallback_values = {
+        'adult_child_ratio': 2.0,
+        'household_density': 1.5,
+        'poverty_intensity': 50.0,
+        'county_match': 0,
+        'age_poverty_interaction': 45.0,
+        'household_complexity': 3.0,
+        'high_poverty': 0,
+        'elderly_case': 0,
+        'large_household': 0
+    }
+    
     for col in engineered_cols:
         data[col] = data[col].replace([np.inf, -np.inf], np.nan)
-        data[col] = data[col].fillna(data[col].median())
+        if data[col].isna().any():
+            data[col] = data[col].fillna(fallback_values.get(col, 0))
     
     return data
 
@@ -160,7 +187,7 @@ def preprocess_case_time_data(client_data):
     Returns:
     --------
     pd.DataFrame
-        Preprocessed data ready for model prediction
+        Preprocessed data ready for model prediction with features in correct order
     """
     # Convert to DataFrame if it's a dictionary
     if isinstance(client_data, dict):
@@ -171,7 +198,35 @@ def preprocess_case_time_data(client_data):
     # Apply feature engineering (this is critical!)
     processed_data = engineer_case_time_features(df)
     
-    return processed_data
+    # Ensure all required columns exist - the model expects these exact features
+    # Base numerical features
+    base_numerical = [
+        'age_intake', 'household_total', 'household_adults', 
+        'household_children', 'poverty_pct', 'adj_poverty_pct'
+    ]
+    
+    # Engineered numerical features
+    engineered_numerical = [
+        'adult_child_ratio', 'household_density', 'poverty_intensity', 'county_match',
+        'age_poverty_interaction', 'household_complexity', 'high_poverty', 
+        'elderly_case', 'large_household'
+    ]
+    
+    # Categorical features
+    categorical_features = [
+        'gender', 'race', 'disabled', 'veteran', 'county_residence',
+        'county_dispute', 'living_arrangement', 'source', 
+        'legal_problem_group', 'age_group'
+    ]
+    
+    # Ensure all features are present
+    all_features = base_numerical + engineered_numerical + categorical_features
+    for feature in all_features:
+        if feature not in processed_data.columns:
+            processed_data[feature] = np.nan
+    
+    # Return only the features in the correct order
+    return processed_data[all_features]
 
 def interpret_case_time(predicted_time):
     """
@@ -288,6 +343,9 @@ def predict_case_time_with_model(client_data, model):
         
         return result
     except Exception as e:
+        print(f"Error in predict_case_time_with_model: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             'predicted_hours': None,
             'complexity_category': "Error",
