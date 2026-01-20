@@ -2332,41 +2332,6 @@ with tab4:
                         title='Service Level Distribution (Repeat Client Cases)'
                     )
                     st.plotly_chart(fig, use_container_width=True)
-                
-                with col_b:
-                    # Average case time by number of cases
-                    case_time_by_count = repeat_df[repeat_df['client_id'].isin(repeat_client_ids)].copy()
-                    case_time_by_count = case_time_by_count.merge(
-                        client_year_counts[['client_id', 'year_opened', 'case_count']], 
-                        on=['client_id', 'year_opened']
-                    )
-                    
-                    avg_time = case_time_by_count.groupby('case_count')['case_time'].mean().reset_index()
-                    
-                    fig = px.bar(
-                        avg_time,
-                        x='case_count',
-                        y='case_time',
-                        title='Average Case Time by Number of Cases per Year',
-                        labels={'case_count': 'Cases per Year', 'case_time': 'Avg Case Time (hours)'}
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                
-                # Service level by close reason heatmap
-                st.markdown("#### Service Level by Close Reason (Top Combinations)")
-                top_combinations = repeat_service.nlargest(15, 'count')
-                
-                fig = px.bar(
-                    top_combinations,
-                    x='close_reason',
-                    y='count',
-                    color='service_level',
-                    title='Top 15 Service Level & Close Reason Combinations',
-                    labels={'count': 'Number of Cases', 'close_reason': 'Close Reason'},
-                    height=500
-                )
-                fig.update_layout(xaxis_tickangle=45)
-                st.plotly_chart(fig, use_container_width=True)
             
             # Detailed table
             with st.expander("📋 View Detailed Repeat Client Data"):
@@ -3327,6 +3292,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
