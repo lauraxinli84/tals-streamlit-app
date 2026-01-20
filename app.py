@@ -1384,7 +1384,7 @@ def download_model_from_drive(file_id, model_name):
 @st.cache_resource
 def load_dv_model():
     """Load DV prediction model from Google Drive"""
-    DV_MODEL_FILE_ID = "185zB1NckKot3BDv7uh-hUpgA8_-jTbuk"
+    DV_MODEL_FILE_ID = "1whcxDUhNFd0tg28RaMwE0FL07LIYpILC"
     model = download_model_from_drive(DV_MODEL_FILE_ID, "DV prediction")
     return model
 
@@ -3308,6 +3308,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
