@@ -1,17 +1,18 @@
-streamlit
-pandas
-numpy
-plotly
-scikit-learn
-joblib
-shap
-streamlit-shap
-gspread
-google-auth
-google-api-python-client
-matplotlib
-openpyxl
-pytz
+streamlit==1.53.0
+pandas==2.3.3
+numpy==2.3.5
+plotly==6.5.2
+scikit-learn==1.8.0
+joblib==1.5.3
+shap==0.50.0
+streamlit-shap==1.0.2
+gspread==6.2.1
+google-auth==2.47.0
+google-api-python-client==2.188.0
+matplotlib==3.10.8
+openpyxl==3.1.5
+pytz==2025.2
+
 
 
 
