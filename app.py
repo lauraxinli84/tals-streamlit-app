@@ -1391,7 +1391,7 @@ def load_dv_model():
 @st.cache_resource  
 def load_case_time_model():
     """Load case time prediction model from Google Drive"""
-    CASE_TIME_MODEL_FILE_ID = "12o4y0S9RiAFHmaoabASmYkQ2hWll03uZ"
+    CASE_TIME_MODEL_FILE_ID = "1yRLO0QaWtv2EI3BQgG1G__lKDf-6QrjZ"
     model = download_model_from_drive(CASE_TIME_MODEL_FILE_ID, "case time prediction")
     return model
 
@@ -3304,6 +3304,7 @@ if st.sidebar.button("Prepare Excel Download", key="excel_download_btn"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_excel_btn"
     )
+
 
 
 
